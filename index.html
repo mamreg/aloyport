@@ -162,6 +162,13 @@ tr.selfrow td{background:var(--accent-soft)}
 table.views td.wide{width:45%}
 table.views tbody th{text-transform:none;letter-spacing:0;font-size:13px;color:var(--ink);position:static;font-weight:500}
 @media (max-width:600px){ .gsearch{order:5;flex-basis:100%;max-width:none} h1.sname{font-size:22px} .hbar{grid-template-columns:minmax(80px,120px) 1fr 52px 28px} }
+
+.subchip{font-size:12px;padding:1px 8px;border-radius:999px;background:var(--accent-soft);color:var(--accent);text-decoration:none}
+.subseg{border:1px solid var(--line);border-radius:var(--r);padding:12px;margin-top:12px;display:grid;gap:8px;background:var(--bg)}
+.subhead{gap:10px}
+input.subname{font-weight:600;font-size:15px;background:transparent;border-color:transparent;padding:4px 6px;flex:0 1 260px}
+input.subname:hover,input.subname:focus{border-color:var(--line);background:var(--panel)}
+details.unassigned{margin-top:14px} details.unassigned summary{cursor:pointer;color:var(--muted);font-size:13px;padding:6px 0}
 @media (prefers-reduced-motion: reduce){ *{transition:none!important} }
 </style>
 </head>
@@ -177,6 +184,7 @@ table.views tbody th{text-transform:none;letter-spacing:0;font-size:13px;color:v
     <button data-tab="home">Home</button>
     <button data-tab="stocks">Stocks</button>
     <button data-tab="views">Views</button>
+    <button data-tab="sectors">Sectors</button>
     <button data-tab="portfolio">Model portfolio</button>
     <button data-tab="process">Process</button>
     <button data-tab="data">Data</button>
@@ -229,7 +237,7 @@ function safeSet(k, v) { try { localStorage.setItem(k, v); return true; } catch 
 /* ---------- config & state ---------- */
 const cfg = Object.assign({ priceWorker: DEFAULT_PRICE_WORKER, stateWorker: "", token: "" }, JSON.parse(safeGet(LS_CFG) || "{}"));
 function saveCfg() { safeSet(LS_CFG, JSON.stringify(cfg)); }
-const blankState = () => ({ v: 1, snapshots: [], indexLevels: [], portfolio: { events: [] }, stocks: {}, yahoo: {}, notes: {}, views: { country: {}, sector: {}, overall: "" }, process: {}, updated: null });
+const blankState = () => ({ v: 1, snapshots: [], indexLevels: [], portfolio: { events: [] }, stocks: {}, yahoo: {}, notes: {}, sectors: {}, views: { country: {}, sector: {}, overall: "" }, process: {}, updated: null });
 const dump = (x, sp) => JSON.stringify(x, (k, v) => k.startsWith("_") ? undefined : v, sp);
 let S = blankState();
 let mode = "local"; // local | cloud | viewer
@@ -469,13 +477,15 @@ let tab = decodeURIComponent(location.hash.replace("#", "")) || "home";
 function go(t) { tab = t; history.replaceState(null, "", "#" + t); render(); }
 $("#nav").addEventListener("click", e => { const b = e.target.closest("button[data-tab]"); if (b) go(b.dataset.tab); });
 function render() {
-  const navTab = tab.startsWith("stock/") ? "stocks" : tab;
+  const navTab = tab.startsWith("stock/") ? "stocks" : tab.startsWith("sector/") ? "sectors" : tab;
   for (const b of document.querySelectorAll("#nav button")) b.setAttribute("aria-current", b.dataset.tab === navTab ? "page" : "false");
   const app = $("#app"); app.replaceChildren(); window.scrollTo(0, 0);
   if (mode === "local") app.append(el("div", { class: "banner" }, el("b", { text: "Saved in this browser only. " }), "Your portfolio is stored on this computer until the private Worker is set up. Then add its address on the Data tab and everything moves to the cloud."));
   if (tab.startsWith("stock/")) renderStock(app, tab.slice(6));
   else if (tab === "stocks") renderStocks(app);
   else if (tab === "views") renderViews(app);
+  else if (tab === "sectors") renderSectors(app);
+  else if (tab.startsWith("sector/")) renderSector(app, tab.slice(7));
   else if (tab === "process") renderProcess(app);
   else if (tab === "portfolio") renderPortfolio(app);
   else if (tab === "data") renderData(app);
@@ -863,6 +873,11 @@ function mountGlobalSearch() {
       if (hit) { const k = hit.toLowerCase().indexOf(q); items.push({ href: stockHref(c), label: stockInfo(c).name, hint: "…" + hit.slice(Math.max(0, k - 20), k + 40).replace(/\s+/g, " ") + "…" }); }
       if (items.length > 12) break;
     }
+    for (const [name, sn] of Object.entries(S.sectors || {})) {
+      const texts = [...Object.values(sn.sec || {}), ...(sn.subs || []).map(u => u.name + " " + (u.note || "")), ...(sn.log || []).map(l => l.text)];
+      const hit = texts.find(t => t && t.toLowerCase().includes(q));
+      if (hit || name.toLowerCase().includes(q)) { const h = hit || name; const k = Math.max(0, h.toLowerCase().indexOf(q)); items.push({ href: sectorHref(name), label: name + " (sector)", hint: "…" + h.slice(Math.max(0, k - 20), k + 40).replace(/\s+/g, " ") + "…" }); }
+    }
     show();
   });
   inp.addEventListener("keydown", e => {
@@ -909,6 +924,8 @@ function renderHome(app) {
     crumbs.append(el("button", { type: "button", class: "linkbtn", onclick: () => { homeView.g1 = null; homeView.g2 = null; render(); } }, "All " + (homeView.by === "country" ? "countries" : "sectors")));
     if (homeView.g1) crumbs.append(" › ", el("button", { type: "button", class: "linkbtn", onclick: () => { homeView.g2 = null; render(); } }, homeView.g1));
     if (homeView.g2) crumbs.append(" › ", el("span", { text: homeView.g2 }));
+    const secName = homeView.by === "sector" ? homeView.g1 : homeView.g2;
+    if (secName) crumbs.append("  ·  ", sectorLink(secName, "Open " + secName + " sector notes →"));
     card.append(crumbs);
   }
   const groupBars = (rs, key, onPick) => {
@@ -1045,7 +1062,8 @@ async function renderStock(app, code) {
     const ss = el("select", { "aria-label": "Sector" }, ...GICS.map(g => el("option", { value: g, text: g }))); ss.value = info.sector;
     ss.addEventListener("change", () => { S.stocks[code] = Object.assign(S.stocks[code] || {}, { sector: ss.value }); persist(); });
     meta.append(ss);
-  } else meta.append(info.sector);
+  } else meta.append(sectorLink(info.sector));
+  for (const x of subsOf(code)) meta.append(" · ", el("a", { href: sectorHref(x.sec), class: "subchip" }, x.sub.name));
   head.append(meta);
   const tiles = el("div", { class: "tiles", style: "margin-top:12px" });
   const tile = (lab, id, small) => el("div", { class: "tile" }, el("div", { class: "lab", text: lab }), el("div", { class: "big num", id, text: "…" }), el("div", { class: "small", id: id + "s", text: small || "" }));
@@ -1253,6 +1271,160 @@ function logBlock(code, n) {
   return card;
 }
 
+/* ---------- Sectors ---------- */
+const SECTOR_SECTIONS = [
+  ["overview", "1. Sector overview", "How the sector is structured in this index: which countries and business models dominate, how it makes money, what share of the index it is."],
+  ["drivers", "2. Cycle & key drivers", "Where the sector is in its cycle and the 3–5 indicators you track (one per line: current level and your view)."],
+  ["view", "3. My view & positioning", "Your stance on the sector and why; which sub-segments you prefer and avoid."],
+  ["risks", "4. Risks", "What would make you wrong on the sector, and the early warning signs."],
+];
+function sectorNote(name) {
+  if (!S.sectors) S.sectors = {};
+  if (!S.sectors[name]) S.sectors[name] = { sec: {}, subs: [], log: [], updated: null };
+  return S.sectors[name];
+}
+const sectorDone = s => !!s && SECTOR_SECTIONS.every(([k]) => s.sec && s.sec[k] && s.sec[k].trim().length > 10);
+const sectorHref = name => "#sector/" + encodeURIComponent(name);
+function sectorLink(name, label) { return el("a", { href: sectorHref(name), class: "slink" }, label || name); }
+function subsOf(code) {
+  const out = [];
+  for (const [sec, s] of Object.entries(S.sectors || {})) for (const sub of s.subs || []) if ((sub.codes || []).includes(code)) out.push({ sec, sub });
+  return out;
+}
+function sectorCodes(name) {
+  const snap = latestSnap(); const set = new Set();
+  if (snap) for (const r of snap.rows) if (r.sector === name) set.add(r.code);
+  for (const [c, st] of Object.entries(S.stocks)) if (c.startsWith("Y:") && (st.sector || "Other") === name) set.add(c);
+  return [...set];
+}
+function renderSectors(app) {
+  const snap = latestSnap();
+  if (!snap) { app.append(el("div", { class: "card" }, el("p", { text: "Upload the constituents file first." }))); return; }
+  const W = sum(snap.rows.map(r => r.weight)) || 1;
+  const names = [...new Set(snap.rows.map(r => r.sector))].map(s => ({ s, w: sum(snap.rows.filter(r => r.sector === s).map(r => r.weight)), n: snap.rows.filter(r => r.sector === s).length })).sort((a, b) => b.w - a.w);
+  const card = el("div", { class: "card" }, el("h2", { text: "Sectors" }), el("p", { class: "sub", text: "One page per sector: your sector notes, the sub-segments you define, and the stocks in each. Click a sector to open it." }));
+  const t = el("table", {}, el("thead", {}, el("tr", {}, ...["Sector", "Index %", "Stocks", "My view", "Sub-segments", "Note", "Updated"].map((h, k) => el("th", { class: (k === 1 || k === 2 ? "n" : "") + (k === 4 || k === 6 ? " hide-sm" : ""), text: h })))));
+  const tb = el("tbody"); t.append(tb);
+  for (const x of names) {
+    const s = (S.sectors || {})[x.s], v = ((S.views || {}).sector || {})[x.s];
+    tb.append(el("tr", { class: "click", onclick: e => { if (e.target.tagName !== "A") location.hash = sectorHref(x.s).slice(1); } },
+      el("td", { class: "name" }, sectorLink(x.s)), el("td", { class: "n", text: wfmt(x.w / W, 1) }), el("td", { class: "n", text: x.n }),
+      el("td", {}, callTag(v && v.stance)), el("td", { class: "hide-sm muted", text: s && s.subs.length ? s.subs.map(u => u.name).join(", ") : "—" }),
+      el("td", {}, sectorDone(s) ? el("span", { class: "tag ow", text: "Complete" }) : s && SECTOR_SECTIONS.some(([k]) => (s.sec[k] || "").trim()) ? el("span", { class: "tag", text: "Started" }) : el("span", { class: "muted", text: "—" })),
+      el("td", { class: "hide-sm muted", text: s && s.updated ? s.updated.slice(0, 10) : "" })));
+  }
+  card.append(el("div", { class: "tablewrap" }, t));
+  app.append(card);
+}
+function renderSector(app, name) {
+  const snap = latestSnap();
+  const s = sectorNote(name);
+  const W = snap ? sum(snap.rows.map(r => r.weight)) || 1 : 1;
+  const codes = sectorCodes(name);
+  const iw = c => stockInfo(c).iw || 0;
+  const pw = portWeights();
+  const secW = sum(codes.map(iw));
+  const touchedS = () => { s.updated = new Date().toISOString(); clearTimeout(typingTimer); typingTimer = setTimeout(() => { persist(); const e = $("#savedAt"); if (e) e.textContent = "Saved " + new Date().toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" }); }, 600); };
+  app.append(el("div", { class: "row" }, el("a", { href: "#sectors", class: "tiny" }, "← All sectors"), el("div", { class: "spacer" }), el("span", { class: "tiny muted", id: "savedAt", text: s.updated ? "Last edited " + s.updated.slice(0, 16).replace("T", " ") : "" })));
+  // header
+  const v = ((S.views = S.views || { country: {}, sector: {}, overall: "" }).sector[name] = (S.views.sector[name] || { stance: "", reason: "", date: "", history: [] }));
+  const actW = sum(codes.map(c => pw[c] || 0)) - secW;
+  const head = el("div", { class: "card" }, el("div", { class: "row", style: "align-items:baseline" }, el("h1", { class: "sname", text: name }), sectorDone(s) ? el("span", { class: "tag ow", text: "Note complete" }) : null));
+  const tiles = el("div", { class: "tiles", style: "margin-top:12px" });
+  const T = (lab, big, small, c) => tiles.append(el("div", { class: "tile" }, el("div", { class: "lab", text: lab }), el("div", { class: "big num " + (c || ""), text: big }), el("div", { class: "small", text: small || "" })));
+  T("Index weight", pct(secW / W, 1, false), codes.length + " stocks");
+  const ctr = new Map(); for (const c of codes) { const k = stockInfo(c).country; ctr.set(k, (ctr.get(k) || 0) + iw(c)); }
+  const topC = [...ctr.entries()].sort((a, b) => b[1] - a[1]).slice(0, 3).map(([k, w]) => k + " " + pct(secW ? w / secW : 0, 0, false)).join(" · ");
+  T("Largest countries", topC.split(" · ")[0] || "—", topC.split(" · ").slice(1).join(" · "));
+  T("Portfolio active", currentTargets() ? pp(actW, 1) + " pts" : "—", currentTargets() ? "portfolio " + pct(sum(codes.map(c => pw[c] || 0)), 1, false) : "no portfolio yet", cls(actW));
+  T("Sub-segments", String(s.subs.length), s.subs.length ? "defined by you" : "add below");
+  head.append(tiles);
+  const sel = el("select", { "aria-label": "My view on " + name, disabled: !canEdit() || null }, el("option", { value: "", text: "No view" }), ...CALLS.map(x => el("option", { value: x, text: x === "OW" ? "Overweight (OW)" : x === "UW" ? "Underweight (UW)" : "Neutral (N)" })));
+  sel.value = v.stance || "";
+  sel.addEventListener("change", () => { v.history.push({ date: todayISO(), from: v.stance, to: sel.value }); v.stance = sel.value; v.date = todayISO(); persist(); render(); });
+  const why = el("input", { type: "text", value: v.reason || "", placeholder: "One-line reason (also shown on the Views tab)", style: "flex:1 1 280px", disabled: !canEdit() || null });
+  why.addEventListener("input", () => { v.reason = why.value; clearTimeout(typingTimer); typingTimer = setTimeout(persist, 600); });
+  head.append(el("div", { class: "callrow" }, el("span", { class: "lab2", text: "My view" }), sel, v.date ? el("span", { class: "muted tiny", text: "since " + v.date }) : null, why));
+  app.append(head);
+  // sector sections
+  for (const [k, title, ph] of SECTOR_SECTIONS) {
+    const card = el("div", { class: "card" }, el("h2", { text: title }));
+    card.append(area(s.sec[k], val => { s.sec[k] = val; touchedS(); }, ph));
+    app.append(card);
+  }
+  // sub-segments
+  const subCard = el("div", { class: "card" }, el("h2", { text: "5. Sub-segments" }),
+    el("p", { class: "sub", text: "Create your own sub-segments (e.g. Memory, Foundry, AI servers, Components) and put stocks in them. Each gets its own view and note. A stock can sit in more than one." }));
+  if (canEdit()) {
+    const nm = el("input", { type: "text", placeholder: "New sub-segment name", "aria-label": "New sub-segment name", style: "flex:1 1 220px" });
+    const add = () => { const x = nm.value.trim(); if (!x) return; s.subs.push({ id: Date.now(), name: x, stance: "", note: "", codes: [] }); touchedS(); persist(); render(); };
+    nm.addEventListener("keydown", e => { if (e.key === "Enter") { e.preventDefault(); add(); } });
+    subCard.append(el("div", { class: "row" }, nm, el("button", { class: "btn primary", type: "button", onclick: add }, "Add sub-segment")));
+  }
+  const assigned = new Set(s.subs.flatMap(u => u.codes));
+  s.subs.forEach((u, idx) => {
+    const box = el("div", { class: "subseg" });
+    const uw = sum(u.codes.map(iw)), up = sum(u.codes.map(c => pw[c] || 0));
+    const title = el("input", { type: "text", class: "subname", value: u.name, "aria-label": "Sub-segment name", disabled: !canEdit() || null });
+    title.addEventListener("input", () => { u.name = title.value; touchedS(); });
+    const st = el("select", { "aria-label": "View on " + u.name, disabled: !canEdit() || null }, el("option", { value: "", text: "No view" }), ...CALLS.map(x => el("option", { value: x, text: x })));
+    st.value = u.stance || ""; st.addEventListener("change", () => { u.stance = st.value; u.date = todayISO(); touchedS(); persist(); });
+    const tools = canEdit() ? el("span", { class: "row" },
+      el("button", { class: "linkbtn tiny", type: "button", disabled: idx === 0 || null, onclick: () => { [s.subs[idx - 1], s.subs[idx]] = [s.subs[idx], s.subs[idx - 1]]; touchedS(); persist(); render(); } }, "↑ Up"),
+      el("button", { class: "linkbtn tiny", type: "button", onclick: () => { if (confirm("Delete sub-segment \"" + u.name + "\"? Stock notes are not affected.")) { s.subs.splice(idx, 1); touchedS(); persist(); render(); } } }, "Delete")) : null;
+    box.append(el("div", { class: "row subhead" }, title, st,
+      el("span", { class: "muted tiny" }, "Index " + pct(uw / W, 1, false) + " · " + pct(secW ? uw / secW : 0, 0, false) + " of sector" + (currentTargets() ? " · active " : ""), currentTargets() ? el("span", { class: cls(up - uw), text: pp(up - uw, 1) }) : null),
+      el("div", { class: "spacer" }), tools));
+    box.append(area(u.note, val => { u.note = val; touchedS(); }, "What defines this sub-segment, its drivers, and your view: which names you prefer and why."));
+    // stocks in the sub-segment
+    const t = el("table", { class: "subtbl" }, el("thead", {}, el("tr", {}, ...["Stock", "Country", "Index %", "Port %", "Call", "Note", ""].map((h, k) => el("th", { class: (k === 2 || k === 3 ? "n" : "") + (k === 1 ? " hide-sm" : ""), text: h })))));
+    const tb = el("tbody"); t.append(tb);
+    for (const c of u.codes.slice().sort((a, b) => iw(b) - iw(a))) {
+      const n = (S.notes || {})[c], cl = lastCall(n);
+      tb.append(el("tr", {}, el("td", { class: "name" }, stockLink(c), " ", el("span", { class: "tk", text: c.replace(/^Y:/, "") })), el("td", { class: "hide-sm", text: stockInfo(c).country }),
+        el("td", { class: "n", text: wfmt(iw(c)) }), el("td", { class: "n", text: pw[c] ? wfmt(pw[c]) : "" }), el("td", {}, callTag(cl && cl.call)),
+        el("td", {}, noteDone(n) ? el("span", { class: "tag ow", text: "Complete" }) : noteStarted(n) ? el("span", { class: "tag", text: "Started" }) : el("span", { class: "muted", text: "—" })),
+        el("td", {}, canEdit() ? el("button", { class: "btn ghost", type: "button", "aria-label": "Remove from sub-segment", onclick: () => { u.codes = u.codes.filter(x => x !== c); touchedS(); persist(); render(); } }, "×") : null)));
+    }
+    if (u.codes.length) box.append(el("div", { class: "tablewrap" }, t));
+    if (canEdit()) {
+      const ac = autocomplete(c => { if (!u.codes.includes(c)) { u.codes.push(c); touchedS(); persist(); render(); } });
+      ac.querySelector("input").placeholder = "+ Add a stock to " + (u.name || "this sub-segment");
+      box.append(el("div", { class: "row", style: "margin-top:6px" }, ac));
+    }
+    subCard.append(box);
+  });
+  // unassigned stocks
+  const un = codes.filter(c => !assigned.has(c)).sort((a, b) => iw(b) - iw(a));
+  if (s.subs.length && un.length) {
+    const t = el("table", {}, el("thead", {}, el("tr", {}, ...["Stock", "Country", "Index %", "Put in"].map((h, k) => el("th", { class: (k === 2 ? "n" : "") + (k === 1 ? " hide-sm" : ""), text: h })))));
+    const tb = el("tbody"); t.append(tb);
+    for (const c of un.slice(0, 80)) {
+      const pick = el("select", { "aria-label": "Put " + stockInfo(c).name + " in a sub-segment", disabled: !canEdit() || null }, el("option", { value: "", text: "Choose…" }), ...s.subs.map((u, k) => el("option", { value: String(k), text: u.name })));
+      pick.addEventListener("change", () => { const u = s.subs[Number(pick.value)]; if (u && !u.codes.includes(c)) { u.codes.push(c); touchedS(); persist(); render(); } });
+      tb.append(el("tr", {}, el("td", { class: "name" }, stockLink(c), " ", el("span", { class: "tk", text: c.replace(/^Y:/, "") })), el("td", { class: "hide-sm", text: stockInfo(c).country }), el("td", { class: "n", text: wfmt(iw(c)) }), el("td", {}, pick)));
+    }
+    subCard.append(el("details", { class: "unassigned" }, el("summary", {}, "Not yet in a sub-segment: " + un.length + " stocks, " + pct(sum(un.map(iw)) / W, 1, false) + " of index"), el("div", { class: "tablewrap", style: "max-height:420px" }, t)));
+  } else if (!s.subs.length) subCard.append(el("div", { class: "empty", text: "No sub-segments yet. Add the first one above." }));
+  app.append(subCard);
+  // sector log
+  const lc = el("div", { class: "card" }, el("h2", { text: "Sector log" }), el("p", { class: "sub", text: "Dated notes on industry data, peer results, policy and pricing. Newest first." }));
+  if (canEdit()) {
+    const d = el("input", { type: "date", value: todayISO(), "aria-label": "Date" });
+    const tg = el("select", { "aria-label": "Type" }, ...["Industry data", "Peer results", "Policy", "Pricing", "Meeting", "Thought"].map(x => el("option", { value: x, text: x })));
+    const tx = el("textarea", { rows: "3", class: "note", placeholder: "What happened, and what it means for the sector", "aria-label": "Sector log entry" });
+    tx.addEventListener("input", () => autoGrow(tx));
+    lc.append(el("div", { class: "row" }, d, tg), tx, el("div", { class: "row", style: "margin-top:6px" }, el("button", { class: "btn primary", type: "button", onclick: () => {
+      if (!tx.value.trim()) return; s.log.unshift({ id: Date.now(), date: d.value || todayISO(), tag: tg.value, text: tx.value.trim() }); s.log.sort((a, b) => b.date.localeCompare(a.date) || b.id - a.id); touchedS(); persist(); render(); toast("Added to sector log.");
+    } }, "Add entry")));
+  }
+  const list = el("div", { class: "log" });
+  for (const e of s.log) list.append(el("div", { class: "logi" }, el("div", { class: "row" }, el("span", { class: "mono tiny", text: e.date }), el("span", { class: "tag n", text: e.tag }), el("div", { class: "spacer" }),
+    canEdit() ? el("button", { class: "linkbtn tiny", type: "button", onclick: () => { if (confirm("Delete this entry?")) { s.log = s.log.filter(x => x.id !== e.id); touchedS(); persist(); render(); } } }, "Delete") : null), el("div", { class: "logt", text: e.text })));
+  if (!s.log.length) list.append(el("div", { class: "muted tiny", text: "No entries yet." }));
+  lc.append(list); app.append(lc);
+}
+
 /* ---------- Views ---------- */
 function renderViews(app) {
   const snap = latestSnap();
@@ -1281,7 +1453,7 @@ function renderViews(app) {
       sel.addEventListener("change", () => { o.history.push({ date: todayISO(), from: o.stance, to: sel.value }); o.stance = sel.value; o.date = todayISO(); since.textContent = o.date; setFlag(); persist(); });
       const why = el("input", { type: "text", value: o.reason, placeholder: "One line", style: "width:100%;min-width:200px", "aria-label": "Reason for " + g, disabled: !canEdit() || null });
       why.addEventListener("input", () => { o.reason = why.value; clearTimeout(typingTimer); typingTimer = setTimeout(persist, 600); });
-      tb.append(el("tr", {}, el("th", { scope: "row", text: g }), el("td", { class: "n", text: wfmt(iw, 1) }), el("td", {}, sel), el("td", { class: "n " + cls(a) }, hasPort ? pp(a, 1) : "—", " ", flag), el("td", { class: "wide" }, why), since));
+      tb.append(el("tr", {}, el("th", { scope: "row" }, key === "sector" ? sectorLink(g) : g), el("td", { class: "n", text: wfmt(iw, 1) }), el("td", {}, sel), el("td", { class: "n " + cls(a) }, hasPort ? pp(a, 1) : "—", " ", flag), el("td", { class: "wide" }, why), since));
     }
     card.append(el("div", { class: "tablewrap" }, t)); app.append(card);
   }
