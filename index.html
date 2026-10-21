@@ -117,6 +117,51 @@ dialog .df{padding:12px 16px;border-top:1px solid var(--line);display:flex;gap:8
 .drop{border:1.5px dashed var(--line);border-radius:var(--r);padding:18px;text-align:center;color:var(--muted)}
 .drop.over{border-color:var(--accent);color:var(--accent)}
 @media (max-width:600px){ .tile .big{font-size:22px} .chartbox{height:220px} .hide-sm{display:none} }
+
+.gsearch{flex:1 1 240px;max-width:420px;margin-left:auto}
+.gsearch input{width:100%}
+.slink{color:inherit;text-decoration:none;font-weight:500}
+.slink:hover{text-decoration:underline;color:var(--accent)}
+tr.click{cursor:pointer} tr.click:hover td{background:var(--accent-soft)}
+td.click{cursor:pointer}
+.seg{display:inline-flex;border:1px solid var(--line);border-radius:8px;overflow:hidden}
+.seg button{all:unset;cursor:pointer;padding:6px 12px;font-size:13px;color:var(--muted)}
+.seg button+button{border-left:1px solid var(--line)}
+.seg button[aria-pressed="true"]{background:var(--accent-soft);color:var(--accent);font-weight:600}
+.seg button:focus-visible,.linkbtn:focus-visible,.hbar:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.crumbs{font-size:13px;margin:4px 0 10px;color:var(--muted)}
+.linkbtn{all:unset;cursor:pointer;color:var(--accent)} .linkbtn:hover{text-decoration:underline}
+.hbars{display:grid;gap:3px}
+.hbar{all:unset;cursor:pointer;display:grid;grid-template-columns:minmax(100px,190px) 1fr 58px 34px;gap:8px;align-items:center;padding:4px 6px;border-radius:6px;font-size:13px}
+.hbar:hover{background:var(--accent-soft)}
+.hbar .ht{height:12px;background:var(--line);border-radius:3px;overflow:hidden}
+.hbar .ht i{display:block;height:100%;background:var(--accent);border-radius:3px}
+.hbar .hv{text-align:right} .hbar .hn{text-align:right;font-size:11.5px}
+.lab2{font-size:12px;color:var(--muted);font-weight:500;margin:2px 0 6px}
+table.heat th,table.heat td{padding:5px 6px;font-size:12px}
+table.heat tbody th{text-transform:none;letter-spacing:0;font-size:12.5px;color:var(--ink);position:static}
+.bar.cov{grid-template-columns:minmax(90px,150px) 1fr 44px}
+.ctrack{height:10px;background:var(--line);border-radius:3px;overflow:hidden}
+.ctrack i{display:block;height:100%;background:var(--accent)}
+.tag.n{background:var(--line);color:var(--muted)}
+.snip{white-space:normal;max-width:320px;color:var(--muted);font-size:12.5px}
+h1.sname{font-family:var(--display);font-weight:500;font-size:28px;margin:0;line-height:1.2}
+.callrow{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:14px;padding-top:12px;border-top:1px solid var(--line)}
+.callrow .lab2{margin:0}
+textarea.note{width:100%;resize:vertical;line-height:1.55;font-size:14px;padding:10px 12px;min-height:64px;overflow:hidden}
+.valbox,.peers{margin-top:12px}
+table.fin input.yr{width:70px;text-align:right;font-weight:600;background:transparent;border-color:transparent}
+table.fin input.fin-in{width:96px}
+table.fin tbody th{text-transform:none;letter-spacing:0;font-size:13px;color:var(--ink);position:static;font-weight:500}
+table.fin tbody.derived th,table.fin tbody.derived td{color:var(--muted);font-size:12.5px}
+table.fin tbody.derived tr:first-child th,table.fin tbody.derived tr:first-child td{border-top:2px solid var(--line)}
+tr.selfrow td{background:var(--accent-soft)}
+.log{display:grid;gap:10px;margin-top:12px}
+.logi{border-left:3px solid var(--line);padding:4px 0 4px 12px}
+.logt{white-space:pre-wrap;margin-top:4px}
+table.views td.wide{width:45%}
+table.views tbody th{text-transform:none;letter-spacing:0;font-size:13px;color:var(--ink);position:static;font-weight:500}
+@media (max-width:600px){ .gsearch{order:5;flex-basis:100%;max-width:none} h1.sname{font-size:22px} .hbar{grid-template-columns:minmax(80px,120px) 1fr 52px 28px} }
 @media (prefers-reduced-motion: reduce){ *{transition:none!important} }
 </style>
 </head>
@@ -124,13 +169,16 @@ dialog .df{padding:12px 16px;border-top:1px solid var(--line);display:flex;gap:8
 <header>
   <div class="top">
     <div class="brand">Aloy Port<small>MIAPJ · MYR</small></div>
-    <div class="spacer"></div>
+    <div class="gsearch" id="gsearch"></div>
     <span class="pill" id="storePill">…</span>
     <span class="pill" id="pricePill">Prices: —</span>
   </div>
   <nav id="nav" aria-label="Sections">
-    <button data-tab="portfolio">Model portfolio</button>
+    <button data-tab="home">Home</button>
     <button data-tab="stocks">Stocks</button>
+    <button data-tab="views">Views</button>
+    <button data-tab="portfolio">Model portfolio</button>
+    <button data-tab="process">Process</button>
     <button data-tab="data">Data</button>
   </nav>
 </header>
@@ -181,7 +229,8 @@ function safeSet(k, v) { try { localStorage.setItem(k, v); return true; } catch 
 /* ---------- config & state ---------- */
 const cfg = Object.assign({ priceWorker: DEFAULT_PRICE_WORKER, stateWorker: "", token: "" }, JSON.parse(safeGet(LS_CFG) || "{}"));
 function saveCfg() { safeSet(LS_CFG, JSON.stringify(cfg)); }
-const blankState = () => ({ v: 1, snapshots: [], indexLevels: [], portfolio: { events: [] }, stocks: {}, yahoo: {}, updated: null });
+const blankState = () => ({ v: 1, snapshots: [], indexLevels: [], portfolio: { events: [] }, stocks: {}, yahoo: {}, notes: {}, views: { country: {}, sector: {}, overall: "" }, process: {}, updated: null });
+const dump = (x, sp) => JSON.stringify(x, (k, v) => k.startsWith("_") ? undefined : v, sp);
 let S = blankState();
 let mode = "local"; // local | cloud | viewer
 let saveTimer = null;
@@ -209,11 +258,11 @@ async function loadState() {
 function persist() {
   if (mode === "viewer") return;
   S.updated = new Date().toISOString();
-  safeSet(LS_STATE, JSON.stringify(S)); // always keep a local copy as backup
+  safeSet(LS_STATE, dump(S)); // always keep a local copy as backup
   if (mode === "cloud") {
     clearTimeout(saveTimer);
     saveTimer = setTimeout(async () => {
-      try { await api("/state", { method: "PUT", body: JSON.stringify(S) }); setPills(); }
+      try { await api("/state", { method: "PUT", body: dump(S) }); setPills(); }
       catch (e) { toast("Cloud save failed: " + e.message); }
     }, 500);
   }
@@ -230,7 +279,8 @@ const canEdit = () => mode !== "viewer";
 const latestSnap = () => S.snapshots.length ? S.snapshots[S.snapshots.length - 1] : null;
 function snapMap(snap = latestSnap()) { const m = new Map(); if (snap) for (const r of snap.rows) m.set(r.code, r); return m; }
 function stockInfo(code) {
-  const r = snapMap().get(code);
+  let r = snapMap().get(code);
+  if (!r) for (let i = S.snapshots.length - 2; i >= 0 && !r; i--) { const old = S.snapshots[i].rows.find(x => x.code === code); if (old) { const e = S.stocks[code] || {}; return { code, name: old.name, country: old.country, sector: old.sector, iw: 0, inIndex: false, removed: true, ...e, name: old.name }; } }
   const extra = S.stocks[code] || {};
   if (r) return { code, name: r.name, country: r.country, sector: r.sector, iw: r.weight, inIndex: true, ...extra, name: r.name };
   return { code, name: extra.name || code, country: extra.country || "Other", sector: extra.sector || "Other", iw: 0, inIndex: false, ...extra };
@@ -415,16 +465,21 @@ function benchSeries(dates) {
 function addDays(iso, n) { const d = new Date(iso + "T00:00:00Z"); d.setUTCDate(d.getUTCDate() + n); return d.toISOString().slice(0, 10); }
 
 /* ---------- UI: routing ---------- */
-let tab = location.hash.replace("#", "") || "portfolio";
+let tab = decodeURIComponent(location.hash.replace("#", "")) || "home";
 function go(t) { tab = t; history.replaceState(null, "", "#" + t); render(); }
 $("#nav").addEventListener("click", e => { const b = e.target.closest("button[data-tab]"); if (b) go(b.dataset.tab); });
 function render() {
-  for (const b of document.querySelectorAll("#nav button")) b.setAttribute("aria-current", b.dataset.tab === tab ? "page" : "false");
-  const app = $("#app"); app.replaceChildren();
+  const navTab = tab.startsWith("stock/") ? "stocks" : tab;
+  for (const b of document.querySelectorAll("#nav button")) b.setAttribute("aria-current", b.dataset.tab === navTab ? "page" : "false");
+  const app = $("#app"); app.replaceChildren(); window.scrollTo(0, 0);
   if (mode === "local") app.append(el("div", { class: "banner" }, el("b", { text: "Saved in this browser only. " }), "Your portfolio is stored on this computer until the private Worker is set up. Then add its address on the Data tab and everything moves to the cloud."));
-  if (tab === "stocks") renderStocks(app);
+  if (tab.startsWith("stock/")) renderStock(app, tab.slice(6));
+  else if (tab === "stocks") renderStocks(app);
+  else if (tab === "views") renderViews(app);
+  else if (tab === "process") renderProcess(app);
+  else if (tab === "portfolio") renderPortfolio(app);
   else if (tab === "data") renderData(app);
-  else renderPortfolio(app);
+  else renderHome(app);
 }
 
 /* ---------- Portfolio tab ---------- */
@@ -737,29 +792,516 @@ function dialog(title, body, buttons) {
   d.showModal();
 }
 
-/* ---------- Stocks tab (v1: list) ---------- */
+/* ===================== research pages ===================== */
+const CALLS = ["OW", "N", "UW"];
+const SECTIONS = [
+  ["business", "1. Business overview", "What it does, revenue mix by segment and region, competitive position, management."],
+  ["thesis", "2. Thesis", "Why it will beat or lag the index. What the market is missing, what proves you right, by when."],
+  ["drivers", "3. Key drivers", "2–4 numbers that move the stock, one per line: current level and your view (e.g. DRAM contract price: +8% q/q, I expect +10%)."],
+  ["valuation", "4. Valuation", "Method and why it fits (P/B near trough, P/E, EV/EBITDA, SOTP), where it trades vs history and peers, what the price implies."],
+  ["peers", "5. Peers comparison", "How it stacks up against peers, and why it deserves a premium or discount."],
+  ["risks", "6. Risks & exit trigger", "Top 2–3 risks. The one observable thing that makes you sell."],
+];
+const LOGTAGS = ["Results", "Meeting", "News", "Channel check", "Thought", "Rating change"];
+const FIN_ROWS = [["rev", "Revenue"], ["gp", "Gross profit"], ["op", "Operating profit"], ["pbt", "Profit before tax"], ["pat", "Net profit"], ["eps", "EPS"], ["dps", "DPS"]];
+
+function noteOf(code, create = true) {
+  if (!S.notes) S.notes = {};
+  if (!S.notes[code] && create) S.notes[code] = { sec: {}, val: { target: null, scen: {} }, peers: [], self: {}, fin: { years: defaultYears(), rows: {} }, calls: [], log: [], updated: null };
+  return S.notes[code];
+}
+function defaultYears() { const y = new Date().getFullYear() % 100; return [y - 3, y - 2, y - 1, y, y + 1].map((v, i) => "FY" + String(v).padStart(2, "0") + (i >= 3 ? "E" : "")); }
+const noteDone = n => !!n && SECTIONS.every(([k]) => n.sec && n.sec[k] && n.sec[k].trim().length > 10);
+const noteStarted = n => !!n && SECTIONS.some(([k]) => n.sec && n.sec[k] && n.sec[k].trim());
+const lastCall = n => n && n.calls && n.calls.length ? n.calls[n.calls.length - 1] : null;
+let typingTimer = null;
+function touched(n) { n.updated = new Date().toISOString(); clearTimeout(typingTimer); typingTimer = setTimeout(() => { persist(); const s = $("#savedAt"); if (s) s.textContent = "Saved " + new Date().toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" }); }, 600); }
+function autoGrow(t) { t.style.height = "auto"; t.style.height = Math.max(64, t.scrollHeight + 2) + "px"; }
+function area(value, onInput, ph, id) {
+  const t = el("textarea", { class: "note", rows: "3", placeholder: ph, id, disabled: !canEdit() || null });
+  t.value = value || "";
+  t.addEventListener("input", () => { onInput(t.value); autoGrow(t); });
+  requestAnimationFrame(() => autoGrow(t));
+  return t;
+}
+function allCodes() {
+  const s = new Set();
+  for (const sn of S.snapshots) for (const r of sn.rows) s.add(r.code);
+  for (const c of Object.keys(S.stocks)) if (c.startsWith("Y:")) s.add(c);
+  return [...s];
+}
+function stockStatus(code) {
+  if (code.startsWith("Y:")) return "off";
+  const L = latestSnap(); if (!L) return "off";
+  const inLatest = L.rows.some(r => r.code === code);
+  if (!inLatest) return "removed";
+  if (S.snapshots.length > 1) { const P = S.snapshots[S.snapshots.length - 2]; if (!P.rows.some(r => r.code === code)) return "new"; }
+  return "current";
+}
+const portWeights = () => (lastRun && lastRun.run ? lastRun.run.weights : (currentTargets() || {}).weights) || {};
+function portCall(code) { const a = (portWeights()[code] || 0) - (stockInfo(code).iw || 0); return { a, call: Math.abs(a) < 0.0005 ? "N" : a > 0 ? "OW" : "UW" }; }
+const stockHref = code => "#stock/" + encodeURIComponent(code);
+function stockLink(code, label) { return el("a", { href: stockHref(code), class: "slink" }, label || stockInfo(code).name); }
+function callTag(c) { return c ? el("span", { class: "tag " + (c === "OW" ? "ow" : c === "UW" ? "uw" : "n"), text: c }) : el("span", { class: "muted", text: "—" }); }
+
+/* ---------- global search ---------- */
+function mountGlobalSearch() {
+  const box = $("#gsearch"); if (!box) return;
+  const inp = el("input", { type: "search", placeholder: "Search stocks and notes", "aria-label": "Search stocks and notes", autocomplete: "off" });
+  const list = el("div", { class: "ac-list", role: "listbox", hidden: true });
+  box.replaceChildren(el("div", { class: "ac" }, inp, list));
+  let items = [], sel = -1;
+  const show = () => { list.replaceChildren(...items.map((it, k) => el("a", { class: "ac-item", href: it.href, role: "option", "aria-selected": k === sel ? "true" : "false" }, el("span", {}, it.label), el("span", { class: "x", text: it.hint })))); list.hidden = !items.length; };
+  inp.addEventListener("input", () => {
+    const q = inp.value.trim().toLowerCase(); sel = -1; items = [];
+    if (q.length < 2) { show(); return; }
+    for (const c of allCodes()) { const i = stockInfo(c); if ((c + " " + i.name).toLowerCase().includes(q)) items.push({ href: stockHref(c), label: i.name + "  " + c.replace(/^Y:/, ""), hint: i.country, w: i.iw || 0 }); }
+    items.sort((a, b) => b.w - a.w); items = items.slice(0, 6);
+    for (const [c, n] of Object.entries(S.notes || {})) {
+      const texts = [...Object.values(n.sec || {}), ...(n.log || []).map(l => l.text)];
+      const hit = texts.find(t => t && t.toLowerCase().includes(q));
+      if (hit) { const k = hit.toLowerCase().indexOf(q); items.push({ href: stockHref(c), label: stockInfo(c).name, hint: "…" + hit.slice(Math.max(0, k - 20), k + 40).replace(/\s+/g, " ") + "…" }); }
+      if (items.length > 12) break;
+    }
+    show();
+  });
+  inp.addEventListener("keydown", e => {
+    if (e.key === "ArrowDown") { sel = Math.min(items.length - 1, sel + 1); show(); e.preventDefault(); }
+    else if (e.key === "ArrowUp") { sel = Math.max(0, sel - 1); show(); e.preventDefault(); }
+    else if (e.key === "Enter" && items.length) { location.hash = items[Math.max(0, sel)].href.slice(1); inp.value = ""; items = []; show(); inp.blur(); }
+    else if (e.key === "Escape") { items = []; show(); }
+  });
+  list.addEventListener("click", () => { inp.value = ""; items = []; show(); });
+  inp.addEventListener("blur", () => setTimeout(() => { list.hidden = true; }, 200));
+}
+
+/* ---------- Home ---------- */
+let homeView = { by: "country", g1: null, g2: null };
+function renderHome(app) {
+  const snap = latestSnap();
+  if (!snap) {
+    app.append(el("div", { class: "card" }, el("h2", { text: "Welcome" }), el("p", { class: "sub", text: "Upload the MIAPJ constituents file to see the index dashboard." }), el("a", { class: "btn primary", href: "#data" }, "Go to Data")));
+    return;
+  }
+  const rows = snap.rows;
+  const W = rows.reduce((s, r) => s + r.weight, 0) || 1;
+  const sorted = rows.slice().sort((a, b) => b.weight - a.weight);
+  const doneW = sum(rows.filter(r => noteDone((S.notes || {})[r.code])).map(r => r.weight));
+  const startedN = rows.filter(r => noteStarted((S.notes || {})[r.code])).length;
+  const calls = { OW: 0, N: 0, UW: 0 }; for (const n of Object.values(S.notes || {})) { const c = lastCall(n); if (c) calls[c.call]++; }
+  app.append(el("div", { class: "row" }, el("div", { class: "muted tiny", text: "MIAPJ constituents as of " + snap.asof + " · " + rows.length + " names" })));
+  const tiles = el("div", { class: "tiles" });
+  const T = (lab, big, small) => tiles.append(el("div", { class: "tile" }, el("div", { class: "lab", text: lab }), el("div", { class: "big", text: big }), el("div", { class: "small", text: small })));
+  T("Constituents", String(rows.length), new Set(rows.map(r => r.country)).size + " countries · " + new Set(rows.map(r => r.sector)).size + " sectors");
+  T("Top 10 weight", pct(sum(sorted.slice(0, 10).map(r => r.weight)) / W, 1, false), "Top 20: " + pct(sum(sorted.slice(0, 20).map(r => r.weight)) / W, 1, false));
+  T("Largest", pct(sorted[0].weight / W, 1, false), sorted[0].name);
+  T("Notes complete", pct(doneW / W, 1, false), "of index weight · " + startedN + " stocks started");
+  T("My calls", `${calls.OW} / ${calls.N} / ${calls.UW}`, "OW / N / UW");
+  app.append(tiles);
+
+  // drill-down explorer
+  const card = el("div", { class: "card" });
+  const seg = el("div", { class: "seg", role: "group", "aria-label": "View index by" }, ...[["country", "Country"], ["sector", "Sector"], ["stock", "Stock"]].map(([k, l]) => el("button", { type: "button", "aria-pressed": homeView.by === k ? "true" : "false", onclick: () => { homeView = { by: k, g1: null, g2: null }; render(); } }, l)));
+  card.append(el("div", { class: "row", style: "justify-content:space-between" }, el("div", {}, el("h2", { text: "Index breakdown" }), el("p", { class: "sub", text: "Click a bar to drill down. Click a stock to open its page." })), seg));
+  const other = homeView.by === "country" ? "sector" : "country";
+  const crumbs = el("div", { class: "crumbs" });
+  if (homeView.by !== "stock") {
+    crumbs.append(el("button", { type: "button", class: "linkbtn", onclick: () => { homeView.g1 = null; homeView.g2 = null; render(); } }, "All " + (homeView.by === "country" ? "countries" : "sectors")));
+    if (homeView.g1) crumbs.append(" › ", el("button", { type: "button", class: "linkbtn", onclick: () => { homeView.g2 = null; render(); } }, homeView.g1));
+    if (homeView.g2) crumbs.append(" › ", el("span", { text: homeView.g2 }));
+    card.append(crumbs);
+  }
+  const groupBars = (rs, key, onPick) => {
+    const m = new Map(); for (const r of rs) { const g = m.get(r[key]) || { k: r[key], w: 0, n: 0 }; g.w += r.weight; g.n++; m.set(r[key], g); }
+    const gs = [...m.values()].sort((a, b) => b.w - a.w); const max = gs[0] ? gs[0].w : 1;
+    return el("div", { class: "hbars" }, ...gs.map(g => el("button", { type: "button", class: "hbar", onclick: () => onPick(g.k) },
+      el("span", { class: "hl", text: g.k }), el("span", { class: "ht" }, el("i", { style: `width:${g.w / max * 100}%` })), el("span", { class: "hv num", text: pct(g.w / W, 1, false) }), el("span", { class: "hn muted", text: g.n + "" }))));
+  };
+  const stockTable = (rs, limit = 60) => {
+    const t = el("table", {}, el("thead", {}, el("tr", {}, ...["Stock", "Country", "Sector", "Index %", "Call", "Note"].map((h, k) => el("th", { class: k === 3 ? "n" : (k === 1 || k === 2) ? "hide-sm" : "", text: h })))));
+    const tb = el("tbody"); t.append(tb);
+    for (const r of rs.slice().sort((a, b) => b.weight - a.weight).slice(0, limit)) {
+      const n = (S.notes || {})[r.code]; const c = lastCall(n);
+      tb.append(el("tr", { class: "click", onclick: () => location.hash = stockHref(r.code).slice(1) }, el("td", { class: "name" }, stockLink(r.code, r.name), " ", el("span", { class: "tk", text: r.code })),
+        el("td", { class: "hide-sm", text: r.country }), el("td", { class: "hide-sm", text: r.sector }), el("td", { class: "n", text: wfmt(r.weight / W) }), el("td", {}, callTag(c && c.call)),
+        el("td", {}, noteDone(n) ? el("span", { class: "tag ow", text: "Complete" }) : noteStarted(n) ? el("span", { class: "tag", text: "Started" }) : el("span", { class: "muted", text: "—" }))));
+    }
+    return el("div", { class: "tablewrap", style: "max-height:520px" }, t);
+  };
+  if (homeView.by === "stock") card.append(stockTable(rows, 400));
+  else if (!homeView.g1) card.append(groupBars(rows, homeView.by, k => { homeView.g1 = k; render(); }));
+  else {
+    const inG = rows.filter(r => r[homeView.by] === homeView.g1);
+    const inG2 = homeView.g2 ? inG.filter(r => r[other] === homeView.g2) : inG;
+    card.append(el("div", { class: "grid2" },
+      el("div", {}, el("div", { class: "lab2", text: "By " + other + " within " + homeView.g1 }), groupBars(inG, other, k => { homeView.g2 = k; render(); })),
+      el("div", {}, el("div", { class: "lab2", text: (homeView.g2 ? homeView.g2 + " · " : "") + inG2.length + " stocks · " + pct(sum(inG2.map(r => r.weight)) / W, 1, false) + " of index" }), stockTable(inG2))));
+  }
+  app.append(card);
+
+  // heatmap
+  const hm = el("div", { class: "card" }, el("h2", { text: "Country × sector" }), el("p", { class: "sub", text: "Index weight, %. Darker is heavier. Click a cell to drill down." }));
+  const ctr = [...new Set(rows.map(r => r.country))].map(c => [c, sum(rows.filter(r => r.country === c).map(r => r.weight))]).sort((a, b) => b[1] - a[1]);
+  const sec = [...new Set(rows.map(r => r.sector))].map(s => [s, sum(rows.filter(r => r.sector === s).map(r => r.weight))]).sort((a, b) => b[1] - a[1]);
+  const cell = new Map(); for (const r of rows) cell.set(r.country + "|" + r.sector, (cell.get(r.country + "|" + r.sector) || 0) + r.weight);
+  const maxc = Math.max(...cell.values());
+  const short = s => ({ "Information Technology": "IT", "Consumer Discretionary": "Cons. disc.", "Consumer Staples": "Staples", "Communication Services": "Comms", "Health Care": "Health", "Real Estate": "Real est." })[s] || s;
+  const t = el("table", { class: "heat" }, el("thead", {}, el("tr", {}, el("th", { text: "" }), ...sec.map(([s]) => el("th", { class: "n", title: s, text: short(s) })), el("th", { class: "n", text: "Total" }))));
+  const tb = el("tbody"); t.append(tb);
+  for (const [c, tot] of ctr) {
+    tb.append(el("tr", {}, el("th", { scope: "row", text: c }), ...sec.map(([s]) => { const v = cell.get(c + "|" + s) || 0; return el("td", { class: "n" + (v ? " click" : ""), style: v ? `background:color-mix(in srgb, var(--accent) ${Math.round(8 + Math.sqrt(v / maxc) * 70)}%, transparent);color:${v / maxc > 0.35 ? "var(--panel)" : "inherit"}` : "", text: v ? (v / W * 100).toFixed(1) : "·", onclick: v ? () => { homeView = { by: "country", g1: c, g2: s }; render(); } : null }); }),
+      el("td", { class: "n", style: "font-weight:600", text: (tot / W * 100).toFixed(1) })));
+  }
+  hm.append(el("div", { class: "tablewrap" }, t)); app.append(hm);
+
+  // changes + coverage
+  const g = el("div", { class: "grid2" });
+  const ch = el("div", { class: "card" }, el("h2", { text: "Index changes since last upload" }));
+  if (S.snapshots.length > 1) {
+    const P = S.snapshots[S.snapshots.length - 2], pm = new Map(P.rows.map(r => [r.code, r]));
+    const added = rows.filter(r => !pm.has(r.code)), removed = P.rows.filter(r => !rows.some(x => x.code === r.code));
+    const moves = rows.filter(r => pm.has(r.code)).map(r => ({ r, d: r.weight - pm.get(r.code).weight })).sort((a, b) => Math.abs(b.d) - Math.abs(a.d)).slice(0, 8);
+    ch.append(el("p", { class: "sub", text: P.asof + " → " + snap.asof + ": " + added.length + " added, " + removed.length + " removed." }));
+    const L = (title, arr, f) => arr.length ? el("div", {}, el("div", { class: "lab2", text: title }), el("div", { class: "list" }, ...arr.slice(0, 10).map(f))) : null;
+    ch.append(L("Added", added, r => el("div", { class: "li" }, stockLink(r.code, r.name), el("span", { class: "num", text: wfmt(r.weight) + "%" }))),
+      L("Removed", removed, r => el("div", { class: "li" }, stockLink(r.code, r.name), el("span", { class: "num muted", text: "was " + wfmt(r.weight) + "%" }))),
+      L("Biggest weight changes", moves, x => el("div", { class: "li" }, stockLink(x.r.code, x.r.name), el("span", { class: "num " + cls(x.d), text: pp(x.d) }))));
+  } else ch.append(el("p", { class: "sub", text: "Upload the next month's constituents file to see additions, removals and weight changes here." }));
+  const cov = el("div", { class: "card" }, el("h2", { text: "Coverage by country" }), el("p", { class: "sub", text: "Share of each country's index weight where your note is complete." }));
+  const cv = el("div", { class: "bars" });
+  for (const [c, tot] of ctr) {
+    const d = sum(rows.filter(r => r.country === c && noteDone((S.notes || {})[r.code])).map(r => r.weight));
+    cv.append(el("div", { class: "bar cov" }, el("span", { text: c }), el("span", { class: "ctrack" }, el("i", { style: `width:${tot ? d / tot * 100 : 0}%` })), el("span", { class: "v", text: pct(tot ? d / tot : 0, 0, false) })));
+  }
+  cov.append(cv);
+  g.append(ch, cov); app.append(g);
+}
+
+/* ---------- Stocks list ---------- */
+let stockFilter = { q: "", country: "", sector: "", call: "", note: "", scope: "current" };
 function renderStocks(app) {
   const snap = latestSnap();
-  const card = el("div", { class: "card" }, el("h2", { text: "Stocks" }), el("p", { class: "sub", text: snap ? "All " + snap.rows.length + " index names as of " + snap.asof + ", plus any off-benchmark stocks you've added. Notes and stock pages come next." : "Upload the constituents file on the Data tab." }));
+  const card = el("div", { class: "card" }, el("h2", { text: "Stocks" }),
+    el("p", { class: "sub", text: snap ? "Every index name as of " + snap.asof + ", plus stocks you've added outside the index. Click a stock to open its page." : "Upload the constituents file on the Data tab." }));
   app.append(card);
   if (!snap) return;
-  const cur = currentTargets(); const pw = lastRun && lastRun.run ? lastRun.run.weights : cur ? cur.weights : {};
-  const q = el("input", { type: "search", placeholder: "Filter by ticker, name, country or sector", "aria-label": "Filter stocks", style: "width:100%;max-width:420px" });
-  const scope = el("select", { "aria-label": "Show" }, el("option", { value: "all", text: "All" }), el("option", { value: "held", text: "In my portfolio" }), el("option", { value: "off", text: "Off-benchmark" }));
-  card.append(el("div", { class: "row", style: "margin-bottom:10px" }, q, scope));
-  const box = el("div", { class: "tablewrap", style: "max-height:70vh" }); card.append(box);
-  const all = snap.rows.map(r => r.code).concat(Object.keys(S.stocks).filter(c => c.startsWith("Y:")));
-  const draw = () => {
-    const s = q.value.trim().toLowerCase(), sc = scope.value;
-    const rows = all.map(c => ({ c, i: stockInfo(c), w: pw[c] || 0 })).filter(x => (!s || (x.c + " " + x.i.name + " " + x.i.country + " " + x.i.sector).toLowerCase().includes(s)) && (sc === "all" || (sc === "held" ? x.w > 0 : !x.i.inIndex)))
-      .sort((a, b) => (b.i.iw || 0) - (a.i.iw || 0) || b.w - a.w);
-    const t = el("table", {}, el("thead", {}, el("tr", {}, ...["Stock", "Country", "Sector", "Index %", "Port %", "Active"].map((h, k) => el("th", { class: k >= 3 ? "n" : k ? "hide-sm" : "", text: h })))));
+  const codes = allCodes();
+  const infos = codes.map(c => ({ c, i: stockInfo(c), n: (S.notes || {})[c], st: stockStatus(c), p: portCall(c) }));
+  const opt = (v, l) => el("option", { value: v, text: l });
+  const mk = (key, label, values) => { const s = el("select", { "aria-label": label }, opt("", label), ...values.map(v => opt(v, v))); s.value = stockFilter[key]; s.addEventListener("change", () => { stockFilter[key] = s.value; draw(); }); return s; };
+  const q = el("input", { type: "search", placeholder: "Filter by ticker, name or text in your notes", "aria-label": "Filter", value: stockFilter.q, style: "flex:1 1 240px" });
+  q.addEventListener("input", () => { stockFilter.q = q.value; draw(); });
+  const scope = el("select", { "aria-label": "Show" }, opt("current", "In index now"), opt("off", "Off-benchmark"), opt("removed", "Removed from index"), opt("all", "All"));
+  scope.value = stockFilter.scope; scope.addEventListener("change", () => { stockFilter.scope = scope.value; draw(); });
+  const addAc = canEdit() ? autocomplete(code => { location.hash = stockHref(code).slice(1); }) : null;
+  if (addAc) addAc.querySelector("input").placeholder = "+ Add or open a stock (any market)";
+  card.append(el("div", { class: "row", style: "margin-bottom:8px" }, addAc),
+    el("div", { class: "row", style: "margin-bottom:10px" }, q, scope,
+      mk("country", "All countries", [...new Set(infos.map(x => x.i.country))].sort()), mk("sector", "All sectors", [...new Set(infos.map(x => x.i.sector))].sort()),
+      mk("call", "Any call", ["OW", "N", "UW", "No call"]), mk("note", "Any note", ["Complete", "Started", "Not started"])));
+  const box = el("div", { class: "tablewrap", style: "max-height:72vh" }); const count = el("div", { class: "tiny muted", style: "margin-top:6px" });
+  card.append(box, count);
+  function draw() {
+    const f = stockFilter, s = f.q.trim().toLowerCase();
+    const rows = infos.filter(x => {
+      if (f.scope === "current" && !(x.st === "current" || x.st === "new")) return false;
+      if (f.scope === "off" && x.st !== "off") return false;
+      if (f.scope === "removed" && x.st !== "removed") return false;
+      if (f.country && x.i.country !== f.country) return false;
+      if (f.sector && x.i.sector !== f.sector) return false;
+      const c = lastCall(x.n); if (f.call && (f.call === "No call" ? c : !c || c.call !== f.call)) return false;
+      if (f.note && (f.note === "Complete" ? !noteDone(x.n) : f.note === "Started" ? !(noteStarted(x.n) && !noteDone(x.n)) : noteStarted(x.n))) return false;
+      if (s) { const hay = (x.c + " " + x.i.name + " " + Object.values((x.n || {}).sec || {}).join(" ")).toLowerCase(); if (!hay.includes(s)) return false; }
+      return true;
+    }).sort((a, b) => (b.i.iw || 0) - (a.i.iw || 0) || ((b.n || {}).updated || "").localeCompare((a.n || {}).updated || ""));
+    const t = el("table", {}, el("thead", {}, el("tr", {}, ...["Stock", "Country", "Sector", "Index %", "Port %", "My call", "Thesis", "Note", "Updated"].map((h, k) => el("th", { class: (k === 3 || k === 4 ? "n " : "") + (k === 1 || k === 2 || k === 6 || k === 8 ? "hide-sm" : ""), text: h })))));
     const tb = el("tbody"); t.append(tb);
-    for (const x of rows.slice(0, 400)) tb.append(el("tr", { class: x.i.inIndex ? "" : "off" }, el("td", { class: "name" }, x.i.name, " ", el("span", { class: "tk", text: x.c.replace(/^Y:/, "") })), el("td", { class: "hide-sm", text: x.i.country }), el("td", { class: "hide-sm", text: x.i.sector }),
-      el("td", { class: "n", text: wfmt(x.i.iw) }), el("td", { class: "n", text: x.w ? wfmt(x.w) : "" }), el("td", { class: "n " + cls(x.w - (x.i.iw || 0)), text: pp(x.w - (x.i.iw || 0)) })));
-    box.replaceChildren(t);
+    for (const x of rows.slice(0, 500)) {
+      const c = lastCall(x.n), pw = portWeights()[x.c] || 0, th = ((x.n || {}).sec || {}).thesis || "";
+      tb.append(el("tr", { class: "click" + (x.st === "off" ? " off" : ""), onclick: e => { if (e.target.tagName !== "A") location.hash = stockHref(x.c).slice(1); } },
+        el("td", { class: "name" }, stockLink(x.c, x.i.name), " ", el("span", { class: "tk", text: x.c.replace(/^Y:/, "") }), x.st === "new" ? el("span", { class: "tag ow", text: "new" }) : x.st === "removed" ? el("span", { class: "tag", text: "removed" }) : x.st === "off" ? el("span", { class: "tag", text: "off-benchmark" }) : null),
+        el("td", { class: "hide-sm", text: x.i.country }), el("td", { class: "hide-sm", text: x.i.sector }), el("td", { class: "n", text: wfmt(x.i.iw) }), el("td", { class: "n", text: pw ? wfmt(pw) : "" }),
+        el("td", {}, callTag(c && c.call)), el("td", { class: "hide-sm snip", text: th.slice(0, 90) + (th.length > 90 ? "…" : "") }),
+        el("td", {}, noteDone(x.n) ? el("span", { class: "tag ow", text: "Complete" }) : noteStarted(x.n) ? el("span", { class: "tag", text: "Started" }) : el("span", { class: "muted", text: "—" })),
+        el("td", { class: "hide-sm muted", text: x.n && x.n.updated ? x.n.updated.slice(0, 10) : "" })));
+    }
+    box.replaceChildren(rows.length ? t : el("div", { class: "empty", text: "No stocks match." }));
+    count.textContent = rows.length + " stocks" + (rows.length > 500 ? " (showing first 500)" : "");
+  }
+  draw();
+}
+
+/* ---------- Stock page ---------- */
+async function renderStock(app, code) {
+  const info = stockInfo(code), n = noteOf(code);
+  const st = stockStatus(code);
+  app.append(el("div", { class: "row" }, el("a", { href: "#stocks", class: "tiny" }, "← All stocks"), el("div", { class: "spacer" }), el("span", { class: "tiny muted", id: "savedAt", text: n && n.updated ? "Last edited " + n.updated.slice(0, 16).replace("T", " ") : "" })));
+  const head = el("div", { class: "card" });
+  head.append(el("div", { class: "row", style: "align-items:baseline" }, el("h1", { class: "sname", text: info.name }), el("span", { class: "tk", text: code.replace(/^Y:/, "") }),
+    st === "new" ? el("span", { class: "tag ow", text: "New to index" }) : st === "removed" ? el("span", { class: "tag", text: "Removed from index" }) : st === "off" ? el("span", { class: "tag", text: "Off-benchmark" }) : null,
+    noteDone(n) ? el("span", { class: "tag ow", text: "Note complete" }) : null));
+  const meta = el("div", { class: "muted tiny" }, info.country + " · ");
+  if (!info.inIndex && canEdit()) {
+    const ss = el("select", { "aria-label": "Sector" }, ...GICS.map(g => el("option", { value: g, text: g }))); ss.value = info.sector;
+    ss.addEventListener("change", () => { S.stocks[code] = Object.assign(S.stocks[code] || {}, { sector: ss.value }); persist(); });
+    meta.append(ss);
+  } else meta.append(info.sector);
+  head.append(meta);
+  const tiles = el("div", { class: "tiles", style: "margin-top:12px" });
+  const tile = (lab, id, small) => el("div", { class: "tile" }, el("div", { class: "lab", text: lab }), el("div", { class: "big num", id, text: "…" }), el("div", { class: "small", id: id + "s", text: small || "" }));
+  tiles.append(tile("Price", "tPx"), tile("1 month", "t1m"), tile("Year to date", "tYtd"), tile("1 year", "t1y"));
+  const pc = portCall(code);
+  tiles.append(el("div", { class: "tile" }, el("div", { class: "lab", text: "Weight: index / portfolio" }), el("div", { class: "big num", text: wfmt(info.iw || 0, 2) + " / " + wfmt(portWeights()[code] || 0, 2) }), el("div", { class: "small " + cls(pc.a), text: "Active " + pp(pc.a) + " pts" })));
+  head.append(tiles);
+  // call vs portfolio
+  const c = lastCall(n);
+  const callSel = el("select", { "aria-label": "My call", disabled: !canEdit() || null }, el("option", { value: "", text: "No call" }), ...CALLS.map(x => el("option", { value: x, text: x === "OW" ? "Overweight (OW)" : x === "UW" ? "Underweight (UW)" : "Neutral (N)" })));
+  callSel.value = c ? c.call : "";
+  callSel.addEventListener("change", () => {
+    const why = prompt("Reason for this call (one line):", "") ?? "";
+    n.calls.push({ date: todayISO(), call: callSel.value || null, reason: why.trim() });
+    n.log.unshift({ id: Date.now(), date: todayISO(), tag: "Rating change", text: "Call → " + (callSel.value || "none") + (why.trim() ? ": " + why.trim() : "") });
+    touched(n); persist(); render();
+  });
+  const mismatch = c && c.call && currentTargets() && c.call !== pc.call;
+  const cv = el("div", { class: "callrow" }, el("span", { class: "lab2", text: "My call" }), callSel,
+    c ? el("span", { class: "muted tiny", text: "since " + c.date }) : null,
+    el("span", { class: "lab2", style: "margin-left:12px", text: "Model portfolio" }), currentTargets() ? callTag(pc.call) : el("span", { class: "muted tiny", text: "no portfolio yet" }),
+    mismatch ? el("span", { class: "tag uw", text: "Differs from portfolio" }) : null);
+  head.append(cv);
+  if (mismatch) {
+    const r = el("input", { type: "text", placeholder: "Why the portfolio differs from your call (e.g. liquidity, risk budget, waiting for entry)", value: n.mismatch || "", style: "width:100%;margin-top:6px", disabled: !canEdit() || null });
+    r.addEventListener("input", () => { n.mismatch = r.value; touched(n); });
+    head.append(r);
+  }
+  app.append(head);
+
+  // sections
+  for (const [k, title, ph] of SECTIONS) {
+    const card = el("div", { class: "card" }, el("h2", { text: title }));
+    card.append(area(n.sec[k], v => { n.sec[k] = v; touched(n); }, ph, "sec_" + k));
+    if (k === "valuation") card.append(valuationBlock(code, n));
+    if (k === "peers") card.append(peersBlock(code, n));
+    app.append(card);
+  }
+  app.append(financialsBlock(code, n));
+  app.append(logBlock(code, n));
+  if (n.calls.length) {
+    const ch = el("div", { class: "card" }, el("h2", { text: "Call history" }));
+    ch.append(el("div", { class: "list" }, ...n.calls.slice().reverse().map(x => el("div", { class: "li" }, el("span", {}, el("span", { class: "mono tiny", text: x.date + "  " }), callTag(x.call), " ", x.reason || "")))));
+    app.append(ch);
+  }
+  // prices
+  try {
+    const sym = await resolveSymbol(code);
+    if (!sym) throw new Error("no Yahoo symbol");
+    const ch = await chart(sym, "2y");
+    const ks = [...ch.series.keys()].sort(); const last = ks[ks.length - 1]; const pl = ch.series.get(last);
+    const at = d => { let v = null; for (const k of ks) { if (k <= d) v = ch.series.get(k); else break; } return v; };
+    const rr = d => { const b = at(d); return b ? pl / b - 1 : null; };
+    const px = ch.last ?? pl;
+    $("#tPx").textContent = num(px, px > 1000 ? 0 : 2); $("#tPxs").textContent = ch.ccy + " · " + sym;
+    const set = (id, v) => { const e = $("#" + id); e.textContent = pct(v); e.className = "big num " + cls(v); };
+    set("t1m", rr(addDays(last, -30))); set("tYtd", rr(addDays(last.slice(0, 4) + "-01-01", -1))); set("t1y", rr(addDays(last, -365)));
+    n._px = px; n._ccy = ch.ccy; updateVal(n);
+    const dy = $("#finDy"); if (dy) dy.dispatchEvent(new Event("refresh"));
+  } catch (e) { const t = $("#tPx"); if (t) { t.textContent = "—"; $("#tPxs").textContent = "Price unavailable (" + e.message + ")"; } }
+}
+function valuationBlock(code, n) {
+  const v = n.val; v.scen = v.scen || {};
+  const box = el("div", { class: "valbox" });
+  const tp = el("input", { type: "number", step: "any", class: "w", style: "width:120px", value: v.target ?? "", "aria-label": "Target price", disabled: !canEdit() || null });
+  tp.addEventListener("input", () => { v.target = tp.value === "" ? null : Number(tp.value); touched(n); updateVal(n); });
+  box.append(el("div", { class: "row" }, el("span", { class: "lab2", text: "Target price (local currency)" }), tp, el("span", { class: "muted tiny", id: "valUp" })));
+  const t = el("table", { class: "scen" }, el("thead", {}, el("tr", {}, el("th", { text: "Scenario" }), el("th", { class: "n", text: "Target price" }), el("th", { class: "n", text: "Probability %" }), el("th", { class: "n", text: "vs price" }))));
+  const tb = el("tbody"); t.append(tb);
+  for (const s of ["bull", "base", "bear"]) {
+    const o = v.scen[s] = v.scen[s] || {};
+    const a = el("input", { type: "number", step: "any", class: "w", style: "width:110px", value: o.px ?? "", "aria-label": s + " target", disabled: !canEdit() || null });
+    const b = el("input", { type: "number", step: "1", class: "w", value: o.p ?? "", "aria-label": s + " probability", disabled: !canEdit() || null });
+    a.addEventListener("input", () => { o.px = a.value === "" ? null : Number(a.value); touched(n); updateVal(n); });
+    b.addEventListener("input", () => { o.p = b.value === "" ? null : Number(b.value); touched(n); updateVal(n); });
+    tb.append(el("tr", {}, el("td", { text: s[0].toUpperCase() + s.slice(1) }), el("td", { class: "n" }, a), el("td", { class: "n" }, b), el("td", { class: "n", id: "vs_" + s, text: "" })));
+  }
+  tb.append(el("tr", {}, el("td", { style: "font-weight:600", text: "Probability-weighted" }), el("td", { class: "n", id: "pwT", style: "font-weight:600" }), el("td", { class: "n", id: "pwP" }), el("td", { class: "n", id: "pwU", style: "font-weight:600" })));
+  box.append(el("div", { class: "lab2", style: "margin-top:10px", text: "Bull / base / bear (optional)" }), el("div", { class: "tablewrap" }, t), el("div", { class: "tiny muted", id: "rr" }));
+  setTimeout(() => updateVal(n), 0);
+  return box;
+}
+function updateVal(n) {
+  const px = n._px, v = n.val, up = x => px && x != null ? x / px - 1 : null;
+  const u = $("#valUp"); if (u) { const x = up(v.target); u.innerHTML = ""; u.append(v.target == null ? "" : el("span", { class: cls(x), text: (px ? pct(x) + " upside vs " + num(px, px > 1000 ? 0 : 2) : "") })); }
+  let tw = 0, tp = 0, ok = true;
+  for (const s of ["bull", "base", "bear"]) {
+    const o = v.scen[s] || {}; const c = $("#vs_" + s); if (c) { const x = up(o.px); c.textContent = pct(x); c.className = "n " + cls(x); }
+    if (o.px == null || o.p == null) ok = false; else { tw += o.px * o.p; tp += o.p; }
+  }
+  const T = $("#pwT"); if (!T) return;
+  if (ok && tp > 0) {
+    const pw = tw / tp; T.textContent = num(pw, pw > 1000 ? 0 : 2); $("#pwP").textContent = tp + "%"; $("#pwP").className = "n " + (Math.abs(tp - 100) > 0.5 ? "neg" : "");
+    const x = up(pw); $("#pwU").textContent = pct(x); $("#pwU").className = "n " + cls(x);
+    const bear = up(v.scen.bear.px);
+    $("#rr").textContent = (x != null && bear != null && bear < 0) ? "Upside : downside = " + (x / -bear).toFixed(1) + "x" + (Math.abs(tp - 100) > 0.5 ? " · probabilities should add to 100%" : "") : "";
+  } else { T.textContent = "—"; $("#pwP").textContent = ""; $("#pwU").textContent = ""; $("#rr").textContent = ""; }
+}
+function peersBlock(code, n) {
+  const box = el("div", { class: "peers" });
+  const F = [["pe", "P/E"], ["pb", "P/B"], ["ev", "EV/EBITDA"], ["roe", "ROE %"], ["g", "EPS growth %"], ["dy", "Div yield %"]];
+  const t = el("table", {}, el("thead", {}, el("tr", {}, el("th", { text: "Company" }), el("th", { class: "n", text: "1M" }), el("th", { class: "n", text: "YTD" }), el("th", { class: "n", text: "1Y" }), ...F.map(([, l]) => el("th", { class: "n", text: l })), el("th", { text: "" }))));
+  const tb = el("tbody"); t.append(tb);
+  const rowFor = (pcode, obj, self) => {
+    const r = el("tr", { class: self ? "selfrow" : "" }, el("td", { class: "name" }, self ? el("b", { text: stockInfo(pcode).name }) : stockLink(pcode), " ", el("span", { class: "tk", text: pcode.replace(/^Y:/, "") })));
+    const cells = ["1m", "ytd", "1y"].map(() => el("td", { class: "n muted", text: "…" })); r.append(...cells);
+    for (const [k, l] of F) {
+      const i = el("input", { type: "number", step: "any", class: "w", style: "width:70px", value: obj[k] ?? "", "aria-label": l, disabled: !canEdit() || null });
+      i.addEventListener("input", () => { obj[k] = i.value === "" ? null : Number(i.value); touched(n); });
+      r.append(el("td", { class: "n" }, i));
+    }
+    r.append(el("td", {}, self || !canEdit() ? null : el("button", { class: "btn ghost", type: "button", "aria-label": "Remove peer", onclick: () => { n.peers = n.peers.filter(p => p.code !== pcode); touched(n); persist(); render(); } }, "×")));
+    (async () => {
+      try {
+        const sym = await resolveSymbol(pcode); if (!sym) throw 0; const ch = await chart(sym, "2y");
+        const ks = [...ch.series.keys()].sort(), last = ks[ks.length - 1], pl = ch.series.get(last);
+        const at = d => { let v = null; for (const k of ks) { if (k <= d) v = ch.series.get(k); else break; } return v; };
+        [addDays(last, -30), addDays(last.slice(0, 4) + "-01-01", -1), addDays(last, -365)].forEach((d, k) => { const b = at(d); const x = b ? pl / b - 1 : null; cells[k].textContent = pct(x, 0); cells[k].className = "n " + cls(x); });
+      } catch { cells.forEach(c => c.textContent = "—"); }
+    })();
+    return r;
   };
-  q.addEventListener("input", draw); scope.addEventListener("change", draw); draw();
+  n.self = n.self || {};
+  tb.append(rowFor(code, n.self, true));
+  for (const p of n.peers) tb.append(rowFor(p.code, p, false));
+  box.append(el("div", { class: "tablewrap", style: "margin-top:10px" }, t));
+  if (canEdit()) {
+    const ac = autocomplete(pc => { if (pc !== code && !n.peers.some(p => p.code === pc)) { n.peers.push({ code: pc }); touched(n); persist(); render(); } });
+    ac.querySelector("input").placeholder = "+ Add a peer (index or any listed stock)";
+    box.append(el("div", { class: "row", style: "margin-top:8px" }, ac));
+  }
+  box.append(el("div", { class: "tiny muted", style: "margin-top:4px", text: "Returns are automatic (local currency). Type or paste the multiples from Bloomberg." }));
+  return box;
+}
+function financialsBlock(code, n) {
+  const f = n.fin = n.fin || { years: defaultYears(), rows: {} };
+  const card = el("div", { class: "card" }, el("h2", { text: "Financials" }),
+    el("p", { class: "sub", text: "3 historical + 2 forecast years. Copy the 7 rows × 5 years from your model (Revenue to DPS, numbers only) and paste into the first cell. Growth and margins calculate themselves." }));
+  const t = el("table", { class: "fin" }); const thead = el("tr", {}, el("th", { text: "" }));
+  f.years.forEach((y, j) => { const i = el("input", { type: "text", value: y, class: "yr", "aria-label": "Year " + (j + 1), disabled: !canEdit() || null }); i.addEventListener("input", () => { f.years[j] = i.value; touched(n); }); thead.append(el("th", { class: "n" }, i)); });
+  t.append(el("thead", {}, thead));
+  const tb = el("tbody"); t.append(tb);
+  const inputs = {};
+  FIN_ROWS.forEach(([k, lab], ri) => {
+    f.rows[k] = f.rows[k] || [null, null, null, null, null];
+    const tr = el("tr", {}, el("th", { scope: "row", text: lab }));
+    inputs[k] = f.rows[k].map((v, j) => {
+      const i = el("input", { type: "text", inputmode: "decimal", class: "w fin-in", value: v == null ? "" : v, "aria-label": lab + " " + f.years[j], disabled: !canEdit() || null });
+      i.addEventListener("input", () => { const x = parseNum(i.value); f.rows[k][j] = x; touched(n); derive(); });
+      i.addEventListener("paste", e => {
+        const txt = (e.clipboardData || window.clipboardData).getData("text"); if (!/[\t\n]/.test(txt)) return;
+        e.preventDefault();
+        const lines = txt.replace(/\r/g, "").split("\n").filter(l => l.trim() !== "");
+        lines.forEach((line, dr) => {
+          const cellsTxt = line.split("\t").map(s => s.trim()); // drop a leading label if present
+          const vals = cellsTxt.filter((s, ci) => !(ci === 0 && s !== "" && parseNum(s) === null));
+          const rk = FIN_ROWS[ri + dr]; if (!rk) return;
+          vals.forEach((s, dc) => { const col = j + dc; if (col > 4) return; const x = parseNum(s); f.rows[rk[0]][col] = x; inputs[rk[0]][col].value = x == null ? "" : x; });
+        });
+        touched(n); derive();
+      });
+      tr.append(el("td", { class: "n" }, i)); return i;
+    });
+    tb.append(tr);
+  });
+  const dt = el("tbody", { class: "derived" }); t.append(dt);
+  const D = [["Revenue growth", "rev", "g"], ["Gross margin", "gp", "m"], ["Operating margin", "op", "m"], ["Net margin", "pat", "m"], ["EPS growth", "eps", "g"], ["Payout ratio", "dps", "po"], ["Dividend yield", "dps", "dy"]];
+  function derive() {
+    dt.replaceChildren();
+    for (const [lab, k, kind] of D) {
+      const tr = el("tr", {}, el("th", { scope: "row", text: lab }));
+      for (let j = 0; j < 5; j++) {
+        const R = f.rows; let x = null;
+        if (kind === "g") { const a = R[k][j], b = j ? R[k][j - 1] : null; x = a != null && b ? (b < 0 || a < 0 ? "nm" : a / b - 1) : null; }
+        else if (kind === "m") { const a = R[k][j], b = R.rev[j]; x = a != null && b ? a / b : null; }
+        else if (kind === "po") { const a = R.dps[j], b = R.eps[j]; x = a != null && b ? (b < 0 ? "nm" : a / b) : null; }
+        else if (kind === "dy") { const a = R.dps[j]; x = a != null && n._px ? a / n._px : null; }
+        tr.append(el("td", { class: "n " + (kind === "g" && x !== "nm" ? cls(x) : ""), text: x == null ? "" : x === "nm" ? "n.m." : pct(x, 1, kind === "g") }));
+      }
+      dt.append(tr);
+    }
+  }
+  derive();
+  const hook = el("span", { id: "finDy", hidden: true }); hook.addEventListener("refresh", derive);
+  card.append(el("div", { class: "tablewrap" }, t), hook, el("div", { class: "tiny muted", style: "margin-top:4px", text: "Dividend yield uses today's price; enter DPS in the same currency as the share price." }));
+  return card;
+}
+function parseNum(s) { if (s == null) return null; s = String(s).trim().replace(/,/g, ""); if (!s || s === "-" || s === "—") return null; const neg = /^\(.*\)$/.test(s); s = s.replace(/[()%]/g, ""); const x = Number(s); return isFinite(x) ? (neg ? -x : x) : null; }
+function logBlock(code, n) {
+  const card = el("div", { class: "card" }, el("h2", { text: "Research log" }), el("p", { class: "sub", text: "Dated notes: results, meetings, news, channel checks. Newest first." }));
+  if (canEdit()) {
+    const d = el("input", { type: "date", value: todayISO(), "aria-label": "Date" });
+    const tg = el("select", { "aria-label": "Type" }, ...LOGTAGS.map(x => el("option", { value: x, text: x })));
+    const tx = el("textarea", { rows: "3", class: "note", placeholder: "What happened, and what it means for your view", "aria-label": "Entry" });
+    tx.addEventListener("input", () => autoGrow(tx));
+    card.append(el("div", { class: "row" }, d, tg), tx, el("div", { class: "row", style: "margin-top:6px" }, el("button", { class: "btn primary", type: "button", onclick: () => {
+      if (!tx.value.trim()) return; n.log.unshift({ id: Date.now(), date: d.value || todayISO(), tag: tg.value, text: tx.value.trim() }); n.log.sort((a, b) => b.date.localeCompare(a.date) || b.id - a.id); touched(n); persist(); render(); toast("Added to log.");
+    } }, "Add entry")));
+  }
+  const list = el("div", { class: "log" });
+  for (const e of n.log) list.append(el("div", { class: "logi" }, el("div", { class: "row" }, el("span", { class: "mono tiny", text: e.date }), el("span", { class: "tag n", text: e.tag }), el("div", { class: "spacer" }),
+    canEdit() ? el("button", { class: "linkbtn tiny", type: "button", onclick: () => { if (confirm("Delete this entry?")) { n.log = n.log.filter(x => x.id !== e.id); touched(n); persist(); render(); } } }, "Delete") : null), el("div", { class: "logt", text: e.text })));
+  if (!n.log.length) list.append(el("div", { class: "muted tiny", text: "No entries yet." }));
+  card.append(list);
+  return card;
+}
+
+/* ---------- Views ---------- */
+function renderViews(app) {
+  const snap = latestSnap();
+  if (!snap) { app.append(el("div", { class: "card" }, el("p", { text: "Upload the constituents file first." }))); return; }
+  S.views = S.views || { country: {}, sector: {}, overall: "" };
+  const V = S.views;
+  const top = el("div", { class: "card" }, el("h2", { text: "Overall market view" }), el("p", { class: "sub", text: "Your big picture for Asia Pacific ex-Japan: where we are in the cycle, what you're positioned for, and why." }));
+  top.append(area(V.overall, v => { V.overall = v; V.updated = new Date().toISOString(); clearTimeout(typingTimer); typingTimer = setTimeout(persist, 600); }, "e.g. AI capex cycle still has 12–18 months to run; prefer memory and AI hardware over consumer; underweight China until policy support broadens…"));
+  app.append(top);
+  const pw = portWeights(); const hasPort = !!currentTargets();
+  for (const [key, title] of [["country", "Countries"], ["sector", "Sectors"]]) {
+    const groups = [...new Set(snap.rows.map(r => r[key]))].map(g => ({ g, iw: sum(snap.rows.filter(r => r[key] === g).map(r => r.weight)) })).sort((a, b) => b.iw - a.iw);
+    const act = new Map(activeBuckets(pw, key).map(x => [x.k, x.v]));
+    const card = el("div", { class: "card" }, el("h2", { text: title }), el("p", { class: "sub", text: "Your stance against the index, next to what your model portfolio actually holds. A flag means the two disagree." }));
+    const t = el("table", { class: "views" }, el("thead", {}, el("tr", {}, ...["", "Index %", "My view", "Portfolio active", "Why", "Since"].map((h, k) => el("th", { class: (k === 1 || k === 3 ? "n" : "") + (k === 5 ? " hide-sm" : ""), text: h })))));
+    const tb = el("tbody"); t.append(tb);
+    for (const { g, iw } of groups) {
+      const o = V[key][g] = V[key][g] || { stance: "", reason: "", date: "", history: [] };
+      const a = act.get(g) || 0;
+      const sel = el("select", { "aria-label": "View on " + g, disabled: !canEdit() || null }, el("option", { value: "", text: "—" }), ...CALLS.map(x => el("option", { value: x, text: x })));
+      sel.value = o.stance;
+      const flag = el("span");
+      const setFlag = () => { const pc = Math.abs(a) < 0.0025 ? "N" : a > 0 ? "OW" : "UW"; flag.replaceChildren(hasPort && o.stance && o.stance !== pc ? el("span", { class: "tag uw", title: "Your view is " + o.stance + " but the portfolio is " + pc, text: "≠ " + pc }) : ""); };
+      setFlag();
+      const since = el("td", { class: "hide-sm muted tiny", text: o.date || "" });
+      sel.addEventListener("change", () => { o.history.push({ date: todayISO(), from: o.stance, to: sel.value }); o.stance = sel.value; o.date = todayISO(); since.textContent = o.date; setFlag(); persist(); });
+      const why = el("input", { type: "text", value: o.reason, placeholder: "One line", style: "width:100%;min-width:200px", "aria-label": "Reason for " + g, disabled: !canEdit() || null });
+      why.addEventListener("input", () => { o.reason = why.value; clearTimeout(typingTimer); typingTimer = setTimeout(persist, 600); });
+      tb.append(el("tr", {}, el("th", { scope: "row", text: g }), el("td", { class: "n", text: wfmt(iw, 1) }), el("td", {}, sel), el("td", { class: "n " + cls(a) }, hasPort ? pp(a, 1) : "—", " ", flag), el("td", { class: "wide" }, why), since));
+    }
+    card.append(el("div", { class: "tablewrap" }, t)); app.append(card);
+  }
+}
+
+/* ---------- Process ---------- */
+function renderProcess(app) {
+  S.process = S.process || {};
+  const P = S.process;
+  const parts = [["approach", "How I invest", "Your philosophy in a few lines: what kind of edge you look for, time horizon, how you use the benchmark."],
+    ["ideas", "Where ideas come from", "Universe (index plus off-benchmark), screens, coverage priorities, sources (management, channel checks, sell-side)."],
+    ["sizing", "How I size", "How conviction and liquidity translate into active weight; largest positions; how you handle the memory cluster's weight."],
+    ["exit", "Exit and review rules", "Thesis-break triggers written before buying; review when a stock lags the index by 15%; review after every results season."],
+    ["risk", "Risk I watch", "Country and sector active weights, concentration, currency, liquidity."]];
+  app.append(el("div", { class: "card" }, el("h2", { text: "My process" }), el("p", { class: "sub", text: "One page your boss can read in two minutes: how you pick, size and exit." })));
+  for (const [k, title, ph] of parts) {
+    const card = el("div", { class: "card" }, el("h2", { text: title }));
+    card.append(area(P[k], v => { P[k] = v; clearTimeout(typingTimer); typingTimer = setTimeout(persist, 600); }, ph));
+    app.append(card);
+  }
 }
 
 /* ---------- Data tab ---------- */
@@ -794,7 +1336,7 @@ function renderData(app) {
         try {
           const who = await api("/me"); const remote = await api("/state");
           if (who.role !== "viewer" && (!remote || !remote.v) && (localCopy.snapshots.length || localCopy.portfolio.events.length)) {
-            await api("/state", { method: "PUT", body: JSON.stringify(localCopy) }); toast("Connected. Your browser data was copied to the cloud.");
+            await api("/state", { method: "PUT", body: dump(localCopy) }); toast("Connected. Your browser data was copied to the cloud.");
           } else toast("Connected as " + who.role + ".");
         } catch (e) { toast("Could not connect: " + e.message); }
         await loadState(); setPills(); render();
@@ -805,7 +1347,7 @@ function renderData(app) {
   const restore = el("input", { type: "file", accept: ".json", hidden: true });
   restore.addEventListener("change", async () => { const f = restore.files[0]; if (!f) return; try { const d = JSON.parse(await f.text()); if (!d.v) throw new Error("not a backup file"); S = Object.assign(blankState(), d); persist(); render(); toast("Restored."); } catch (e) { toast("Restore failed: " + e.message); } });
   c4.append(el("div", { class: "row" },
-    el("button", { class: "btn", type: "button", onclick: () => { const a = el("a", { href: URL.createObjectURL(new Blob([JSON.stringify(S, null, 1)], { type: "application/json" })), download: "aloyport-backup-" + todayISO() + ".json" }); document.body.append(a); a.click(); a.remove(); } }, "Download backup"),
+    el("button", { class: "btn", type: "button", onclick: () => { const a = el("a", { href: URL.createObjectURL(new Blob([dump(S, 1)], { type: "application/json" })), download: "aloyport-backup-" + todayISO() + ".json" }); document.body.append(a); a.click(); a.remove(); } }, "Download backup"),
     canEdit() ? el("button", { class: "btn ghost", type: "button", onclick: () => restore.click() }, "Restore from backup") : null, restore));
   app.append(c1, c2, c3, c4);
 }
@@ -885,7 +1427,8 @@ async function importLevels(file) {
 /* ---------- boot ---------- */
 (async function boot() {
   await loadState(); setPills(); render();
-  window.addEventListener("hashchange", () => { const t = location.hash.replace("#", ""); if (t && t !== tab) { tab = t; render(); } });
+  mountGlobalSearch();
+  window.addEventListener("hashchange", () => { const t = decodeURIComponent(location.hash.replace("#", "")) || "home"; if (t !== tab) { tab = t; render(); } });
 })();
 </script>
 </body>
