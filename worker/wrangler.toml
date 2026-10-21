@@ -1,0 +1,13 @@
+name = "aloyport-api"
+main = "worker.js"
+compatibility_date = "2024-11-01"
+
+# Step 1: npx wrangler kv namespace create PORT_KV
+# Step 2: paste the printed id below, replacing PASTE_KV_ID_HERE
+kv_namespaces = [
+  { binding = "PORT_KV", id = "PASTE_KV_ID_HERE" }
+]
+
+# Secrets (never in this file):
+#   npx wrangler secret put WRITE_TOKEN   ← your edit passphrase
+#   npx wrangler secret put VIEW_TOKEN    ← your boss's view-only passphrase

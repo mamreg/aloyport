@@ -1,0 +1,892 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Aloy Port</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&family=Fraunces:opsz,wght@9..144,500;9..144,600&display=swap" rel="stylesheet">
+<style>
+/* Layout: a fixed top bar with tabs, one centred column of cards beneath. */
+:root{
+  --bg:#f5f6f3; --panel:#ffffff; --ink:#1c2420; --muted:#5f6b65; --line:#dde2dc;
+  --accent:#1f5f4a; --accent-soft:#e3efe9; --pos:#1b7a4a; --neg:#b3402f; --warn:#9a6a12; --warn-soft:#fbf1dc;
+  --bar-pos:#3f8f6b; --bar-neg:#c8705e; --bench:#8a8f8c;
+  --sans:"IBM Plex Sans",system-ui,-apple-system,"Segoe UI",sans-serif;
+  --mono:"IBM Plex Mono",ui-monospace,Menlo,Consolas,monospace;
+  --display:"Fraunces",Georgia,"Times New Roman",serif;
+  --r:10px;
+}
+@media (prefers-color-scheme: dark){ :root:not([data-theme="light"]){
+  --bg:#121614; --panel:#1a201d; --ink:#e6ebe8; --muted:#9aa6a0; --line:#2c3531;
+  --accent:#7cc4a4; --accent-soft:#1f3229; --pos:#6fcf9b; --neg:#ec8a76; --warn:#e2b45c; --warn-soft:#3a2f17;
+  --bar-pos:#5aae88; --bar-neg:#d98472; --bench:#7d8682; color-scheme:dark;
+}}
+:root[data-theme="dark"]{
+  --bg:#121614; --panel:#1a201d; --ink:#e6ebe8; --muted:#9aa6a0; --line:#2c3531;
+  --accent:#7cc4a4; --accent-soft:#1f3229; --pos:#6fcf9b; --neg:#ec8a76; --warn:#e2b45c; --warn-soft:#3a2f17;
+  --bar-pos:#5aae88; --bar-neg:#d98472; --bench:#7d8682; color-scheme:dark;
+}
+*{box-sizing:border-box}
+html,body{margin:0}
+body{background:var(--bg);color:var(--ink);font:14px/1.5 var(--sans);-webkit-font-smoothing:antialiased}
+.num,td.n,th.n{font-variant-numeric:tabular-nums}
+.mono{font-family:var(--mono)}
+a{color:var(--accent)}
+header{position:sticky;top:0;z-index:20;background:var(--panel);border-bottom:1px solid var(--line);
+  padding:10px max(16px,env(safe-area-inset-right)) 0 max(16px,env(safe-area-inset-left))}
+.top{display:flex;align-items:center;gap:12px;flex-wrap:wrap;max-width:1200px;margin:0 auto}
+.brand{font-family:var(--display);font-weight:600;font-size:20px;letter-spacing:.2px}
+.brand small{font-family:var(--sans);font-weight:400;font-size:12px;color:var(--muted);margin-left:8px}
+.spacer{flex:1}
+.pill{font-size:12px;padding:3px 10px;border-radius:999px;border:1px solid var(--line);color:var(--muted);white-space:nowrap}
+.pill.warn{background:var(--warn-soft);border-color:transparent;color:var(--warn)}
+.pill.ok{background:var(--accent-soft);border-color:transparent;color:var(--accent)}
+nav{display:flex;gap:4px;max-width:1200px;margin:8px auto 0;overflow-x:auto}
+nav button{all:unset;cursor:pointer;padding:8px 12px;border-bottom:2px solid transparent;color:var(--muted);font-weight:500;white-space:nowrap}
+nav button[aria-current="page"]{color:var(--ink);border-bottom-color:var(--accent)}
+nav button:focus-visible{outline:2px solid var(--accent);outline-offset:2px;border-radius:4px}
+main{max-width:1200px;margin:0 auto;padding:18px max(16px,env(safe-area-inset-right)) 60px max(16px,env(safe-area-inset-left));display:grid;gap:16px}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:var(--r);padding:16px;min-width:0}
+.card h2{font-size:15px;font-weight:600;margin:0 0 4px}
+.card .sub{color:var(--muted);font-size:12.5px;margin:0 0 12px}
+.grid2{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,360px),1fr));gap:16px}
+.tiles{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,150px),1fr));gap:12px}
+.tile{background:var(--panel);border:1px solid var(--line);border-radius:var(--r);padding:12px 14px;min-width:0}
+.tile .lab{font-size:12px;color:var(--muted)}
+.tile .big{font-family:var(--display);font-size:26px;line-height:1.15;font-weight:500}
+.tile .small{font-size:12px;color:var(--muted)}
+.pos{color:var(--pos)} .neg{color:var(--neg)}
+.banner{background:var(--warn-soft);color:var(--warn);border-radius:var(--r);padding:10px 14px;font-size:13px}
+.banner b{color:inherit}
+.tablewrap{overflow-x:auto;-webkit-overflow-scrolling:touch}
+table{border-collapse:collapse;width:100%;font-size:13px}
+th,td{text-align:left;padding:7px 8px;border-bottom:1px solid var(--line);white-space:nowrap;vertical-align:middle}
+th{font-size:11.5px;font-weight:500;color:var(--muted);text-transform:uppercase;letter-spacing:.4px;position:sticky;top:0;background:var(--panel)}
+td.n,th.n{text-align:right}
+td.name{white-space:normal;min-width:160px}
+td .tk{font-family:var(--mono);font-size:12px;color:var(--muted)}
+tr.off td:first-child{box-shadow:inset 3px 0 0 var(--warn)}
+input,select,textarea,button.btn{font:inherit;color:var(--ink)}
+input[type=number],input[type=text],input[type=search],input[type=date],input[type=password],select,textarea{
+  background:var(--bg);border:1px solid var(--line);border-radius:7px;padding:6px 8px;min-width:0}
+input:focus-visible,select:focus-visible,textarea:focus-visible{outline:2px solid var(--accent);outline-offset:0}
+input.w{width:78px;text-align:right;font-variant-numeric:tabular-nums}
+.btn{cursor:pointer;border:1px solid var(--line);background:var(--panel);border-radius:8px;padding:7px 12px;font-weight:500}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:var(--panel)}
+.btn.ghost{background:transparent}
+.btn:disabled{opacity:.45;cursor:not-allowed}
+.btn:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.row{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.muted{color:var(--muted)}
+.tiny{font-size:12px}
+.chartbox{position:relative;height:280px}
+.bars{display:grid;gap:4px}
+.bar{display:grid;grid-template-columns:minmax(90px,150px) 1fr 64px;align-items:center;gap:8px;font-size:12.5px}
+.bar .track{position:relative;height:14px}
+.bar .track::before{content:"";position:absolute;left:50%;top:-2px;bottom:-2px;width:1px;background:var(--line)}
+.bar .fill{position:absolute;top:2px;height:10px;border-radius:3px}
+.bar .v{text-align:right;font-variant-numeric:tabular-nums}
+.list{display:grid;gap:2px}
+.li{display:flex;justify-content:space-between;gap:8px;padding:5px 0;border-bottom:1px dashed var(--line);font-size:13px}
+.li:last-child{border-bottom:0}
+.ac{position:relative;flex:1 1 260px;min-width:0}
+.ac input{width:100%}
+.ac-list{position:absolute;left:0;right:0;top:100%;margin-top:4px;background:var(--panel);border:1px solid var(--line);border-radius:8px;
+  box-shadow:0 8px 24px rgba(0,0,0,.12);z-index:30;max-height:320px;overflow:auto}
+.ac-item{padding:8px 10px;cursor:pointer;display:flex;gap:8px;justify-content:space-between;font-size:13px}
+.ac-item[aria-selected="true"],.ac-item:hover{background:var(--accent-soft)}
+.ac-item .x{color:var(--muted);font-size:12px}
+.totbar{display:flex;gap:12px;align-items:center;flex-wrap:wrap;font-size:13px}
+.totbar .meter{flex:1 1 200px;height:8px;background:var(--line);border-radius:4px;overflow:hidden}
+.totbar .meter i{display:block;height:100%;background:var(--accent)}
+dialog{border:1px solid var(--line);border-radius:12px;padding:0;background:var(--panel);color:var(--ink);width:min(560px,calc(100vw - 32px))}
+dialog::backdrop{background:rgba(0,0,0,.35)}
+dialog .dh{padding:14px 16px;border-bottom:1px solid var(--line);font-weight:600}
+dialog .db{padding:14px 16px;display:grid;gap:10px;max-height:60vh;overflow:auto}
+dialog .df{padding:12px 16px;border-top:1px solid var(--line);display:flex;gap:8px;justify-content:flex-end}
+.field{display:grid;gap:4px}
+.field label{font-size:12px;color:var(--muted)}
+.toast{position:fixed;left:50%;bottom:calc(20px + env(safe-area-inset-bottom));transform:translateX(-50%);background:var(--ink);color:var(--panel);
+  padding:9px 14px;border-radius:8px;font-size:13px;z-index:50;opacity:0;transition:opacity .2s;pointer-events:none}
+.toast.show{opacity:1}
+.empty{padding:28px;text-align:center;color:var(--muted)}
+.tag{font-size:11px;padding:1px 6px;border-radius:4px;background:var(--warn-soft);color:var(--warn)}
+.tag.ow{background:var(--accent-soft);color:var(--pos)} .tag.uw{background:var(--warn-soft);color:var(--neg)}
+.drop{border:1.5px dashed var(--line);border-radius:var(--r);padding:18px;text-align:center;color:var(--muted)}
+.drop.over{border-color:var(--accent);color:var(--accent)}
+@media (max-width:600px){ .tile .big{font-size:22px} .chartbox{height:220px} .hide-sm{display:none} }
+@media (prefers-reduced-motion: reduce){ *{transition:none!important} }
+</style>
+</head>
+<body>
+<header>
+  <div class="top">
+    <div class="brand">Aloy Port<small>MIAPJ · MYR</small></div>
+    <div class="spacer"></div>
+    <span class="pill" id="storePill">…</span>
+    <span class="pill" id="pricePill">Prices: —</span>
+  </div>
+  <nav id="nav" aria-label="Sections">
+    <button data-tab="portfolio">Model portfolio</button>
+    <button data-tab="stocks">Stocks</button>
+    <button data-tab="data">Data</button>
+  </nav>
+</header>
+<main id="app"></main>
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+<dialog id="dlg"><form method="dialog" id="dlgForm"><div class="dh" id="dlgTitle"></div><div class="db" id="dlgBody"></div><div class="df" id="dlgFoot"></div></form></dialog>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script>
+"use strict";
+/* =========================================================================
+   Aloy Port — model portfolio vs MIAPJ (MYR, total return)
+   Storage: this browser until a Worker URL + passphrase are set on the Data tab,
+   then the private Worker (Cloudflare KV). Prices: Yahoo via a Worker proxy.
+   ========================================================================= */
+const DEFAULT_PRICE_WORKER = "https://mamreg-api.mamreg.workers.dev";
+const LS_STATE = "aloyport.state.v1", LS_CFG = "aloyport.cfg.v1";
+const GICS = ["Information Technology","Materials","Industrials","Energy","Consumer Discretionary","Health Care","Consumer Staples","Utilities","Communication Services","Real Estate","Financials","Other"];
+
+/* ---------- small helpers ---------- */
+const $ = (s, r = document) => r.querySelector(s);
+function el(tag, attrs = {}, ...kids) {
+  const e = document.createElement(tag);
+  for (const [k, v] of Object.entries(attrs || {})) {
+    if (v == null || v === false) continue;
+    if (k === "class") e.className = v;
+    else if (k === "text") e.textContent = v;
+    else if (k.startsWith("on")) e.addEventListener(k.slice(2), v);
+    else if (k === "style") e.setAttribute("style", v);
+    else e.setAttribute(k, v === true ? "" : v);
+  }
+  for (const k of kids.flat()) if (k != null && k !== false) e.append(k instanceof Node ? k : document.createTextNode(String(k)));
+  return e;
+}
+const pct = (x, d = 1, sign = true) => x == null || !isFinite(x) ? "—" : (sign && x > 0 ? "+" : "") + (x * 100).toFixed(d) + "%";
+const pp = (x, d = 2) => x == null || !isFinite(x) ? "—" : (x > 0 ? "+" : "") + (x * 100).toFixed(d);
+const wfmt = (x, d = 2) => x == null || !isFinite(x) ? "—" : (x * 100).toFixed(d);
+const cls = x => x == null || !isFinite(x) || Math.abs(x) < 1e-12 ? "" : x > 0 ? "pos" : "neg";
+const num = (x, d = 2) => x == null || !isFinite(x) ? "—" : x.toLocaleString("en", {minimumFractionDigits: d, maximumFractionDigits: d});
+const todayISO = () => { const d = new Date(); return new Date(d.getTime() - d.getTimezoneOffset() * 6e4).toISOString().slice(0, 10); };
+const sum = a => a.reduce((s, x) => s + x, 0);
+function toast(msg) { const t = $("#toast"); t.textContent = msg; t.classList.add("show"); clearTimeout(toast._t); toast._t = setTimeout(() => t.classList.remove("show"), 2600); }
+function safeGet(k) { try { return localStorage.getItem(k); } catch { return null; } }
+function safeSet(k, v) { try { localStorage.setItem(k, v); return true; } catch { return false; } }
+
+/* ---------- config & state ---------- */
+const cfg = Object.assign({ priceWorker: DEFAULT_PRICE_WORKER, stateWorker: "", token: "" }, JSON.parse(safeGet(LS_CFG) || "{}"));
+function saveCfg() { safeSet(LS_CFG, JSON.stringify(cfg)); }
+const blankState = () => ({ v: 1, snapshots: [], indexLevels: [], portfolio: { events: [] }, stocks: {}, yahoo: {}, updated: null });
+let S = blankState();
+let mode = "local"; // local | cloud | viewer
+let saveTimer = null;
+
+async function api(path, opts = {}) {
+  const base = (cfg.stateWorker || "").replace(/\/+$/, "");
+  const r = await fetch(base + path, { ...opts, headers: { "content-type": "application/json", authorization: "Bearer " + cfg.token, ...(opts.headers || {}) } });
+  if (!r.ok) throw new Error((await r.text()) || r.status);
+  return r.json();
+}
+async function loadState() {
+  if (cfg.stateWorker && cfg.token) {
+    try {
+      const who = await api("/me");
+      const d = await api("/state");
+      S = Object.assign(blankState(), d && d.v ? d : {});
+      mode = who.role === "viewer" ? "viewer" : "cloud";
+      return;
+    } catch (e) { toast("Could not reach the Worker, using this browser's copy: " + e.message); }
+  }
+  const raw = safeGet(LS_STATE);
+  if (raw) { try { S = Object.assign(blankState(), JSON.parse(raw)); } catch {} }
+  mode = "local";
+}
+function persist() {
+  if (mode === "viewer") return;
+  S.updated = new Date().toISOString();
+  safeSet(LS_STATE, JSON.stringify(S)); // always keep a local copy as backup
+  if (mode === "cloud") {
+    clearTimeout(saveTimer);
+    saveTimer = setTimeout(async () => {
+      try { await api("/state", { method: "PUT", body: JSON.stringify(S) }); setPills(); }
+      catch (e) { toast("Cloud save failed: " + e.message); }
+    }, 500);
+  }
+}
+function setPills() {
+  const p = $("#storePill");
+  if (mode === "cloud") { p.className = "pill ok"; p.textContent = "Saved to cloud"; }
+  else if (mode === "viewer") { p.className = "pill ok"; p.textContent = "View only"; }
+  else { p.className = "pill warn"; p.textContent = "Saved in this browser only"; }
+}
+const canEdit = () => mode !== "viewer";
+
+/* ---------- index data ---------- */
+const latestSnap = () => S.snapshots.length ? S.snapshots[S.snapshots.length - 1] : null;
+function snapMap(snap = latestSnap()) { const m = new Map(); if (snap) for (const r of snap.rows) m.set(r.code, r); return m; }
+function stockInfo(code) {
+  const r = snapMap().get(code);
+  const extra = S.stocks[code] || {};
+  if (r) return { code, name: r.name, country: r.country, sector: r.sector, iw: r.weight, inIndex: true, ...extra, name: r.name };
+  return { code, name: extra.name || code, country: extra.country || "Other", sector: extra.sector || "Other", iw: 0, inIndex: false, ...extra };
+}
+const tidy = s => String(s ?? "").replace(/\s+/g, " ").trim();
+const titleCountry = c => { c = tidy(c).toUpperCase(); return c === "SOUTH KOREA" || c === "KOREA" ? "Korea" : c.split(" ").map(w => w ? w[0] + w.slice(1).toLowerCase() : w).join(" "); };
+
+/* Bloomberg code -> Yahoo symbol candidates */
+function yahooCandidates(code) {
+  if (code.startsWith("Y:")) return [code.slice(2)];
+  const [t, sfx] = code.split(" ");
+  const pad4 = x => /^\d+$/.test(x) ? x.padStart(4, "0") : x;
+  switch (sfx) {
+    case "KP": case "KS": return [t + ".KS", t + ".KQ"];
+    case "KQ": return [t + ".KQ", t + ".KS"];
+    case "TT": return [t + ".TW", t + ".TWO"];
+    case "AT": case "AU": return [t + ".AX"];
+    case "IS": case "IN": case "IB": return [t + ".NS", t + ".BO"];
+    case "HK": return [pad4(t) + ".HK"];
+    case "C1": case "CH": case "CG": return [t + ".SS", t + ".SZ"];
+    case "C2": case "CS": return [t + ".SZ", t + ".SS"];
+    case "SP": return [t + ".SI"];
+    case "TB": return [t + ".BK"];
+    case "IJ": return [t + ".JK"];
+    case "PM": return [t + ".PS"];
+    case "NZ": return [t + ".NZ"];
+    case "CN": return [t + ".TO"];
+    case "MK": return []; // Bursa needs the numeric code: resolved by name search
+    default: return [t];
+  }
+}
+
+/* ---------- prices ---------- */
+const chartCache = new Map();
+async function chart(sym, range = "2y") {
+  const key = sym + "|" + range;
+  if (chartCache.has(key)) return chartCache.get(key);
+  const p = (async () => {
+    const r = await fetch(cfg.priceWorker.replace(/\/+$/, "") + "/chart?symbol=" + encodeURIComponent(sym) + "&range=" + range);
+    if (!r.ok) throw new Error("price " + r.status);
+    const d = await r.json();
+    const res = d && d.chart && d.chart.result && d.chart.result[0];
+    if (!res || !res.timestamp) throw new Error("no data for " + sym);
+    const off = (res.meta && res.meta.gmtoffset) || 0;
+    const adj = (res.indicators.adjclose && res.indicators.adjclose[0] && res.indicators.adjclose[0].adjclose) || [];
+    const cl = (res.indicators.quote && res.indicators.quote[0] && res.indicators.quote[0].close) || [];
+    const m = new Map();
+    res.timestamp.forEach((ts, i) => {
+      const v = adj[i] != null ? adj[i] : cl[i];
+      if (v != null && isFinite(v)) m.set(new Date((ts + off) * 1000).toISOString().slice(0, 10), v);
+    });
+    return { sym, ccy: (res.meta.currency || "").toUpperCase(), series: m, last: res.meta.regularMarketPrice, lastTime: res.meta.regularMarketTime };
+  })();
+  chartCache.set(key, p);
+  p.catch(() => chartCache.delete(key));
+  return p;
+}
+async function searchYahoo(q) {
+  const r = await fetch(cfg.priceWorker.replace(/\/+$/, "") + "/search?q=" + encodeURIComponent(q));
+  if (!r.ok) return [];
+  return r.json();
+}
+async function resolveSymbol(code) {
+  if (S.yahoo[code]) return S.yahoo[code];
+  for (const c of yahooCandidates(code)) {
+    try { await chart(c, "2y"); S.yahoo[code] = c; persist(); return c; } catch {}
+  }
+  const info = stockInfo(code);
+  const want = { MK: ".KL", TB: ".BK", IJ: ".JK", PM: ".PS", SP: ".SI" }[code.split(" ")[1]];
+  try {
+    const hits = await searchYahoo(info.name.replace(/\b(Bhd|Berhad|PCL|Tbk|Ltd|Limited|Corp|Co|Inc|Holdings?)\b\.?/gi, "").trim());
+    const pick = hits.find(h => want ? h.symbol.endsWith(want) : true);
+    if (pick) { S.yahoo[code] = pick.symbol; persist(); return pick.symbol; }
+  } catch {}
+  return null;
+}
+async function fxSeries(ccy) {
+  if (!ccy || ccy === "MYR") return null;
+  const [usdmyr, usdccy] = await Promise.all([chart("MYR=X"), ccy === "USD" ? null : chart(ccy + "=X")]);
+  return { usdmyr: usdmyr.series, usdccy: usdccy ? usdccy.series : null };
+}
+async function pool(items, n, fn) {
+  const out = new Array(items.length); let i = 0;
+  await Promise.all(Array.from({ length: Math.min(n, items.length) }, async () => { while (i < items.length) { const k = i++; try { out[k] = await fn(items[k]); } catch (e) { out[k] = { error: e }; } } }));
+  return out;
+}
+/* Sorted forward-filled lookup */
+function ffill(map, dates) {
+  const keys = [...map.keys()].sort(); const out = new Map(); let j = 0, last = null;
+  for (const d of dates) { while (j < keys.length && keys[j] <= d) last = map.get(keys[j++]); if (last != null) out.set(d, last); }
+  return out;
+}
+
+/* Load MYR total-return price series for a list of codes */
+async function loadMyrSeries(codes, range = "2y") {
+  const res = new Map();
+  await pool(codes, 6, async code => {
+    const sym = await resolveSymbol(code);
+    if (!sym) { res.set(code, { error: "no Yahoo symbol" }); return; }
+    try {
+      const c = await chart(sym, range);
+      const fx = await fxSeries(c.ccy);
+      res.set(code, { sym, ccy: c.ccy, local: c.series, fx, last: c.last, lastTime: c.lastTime });
+    } catch (e) { res.set(code, { sym, error: e.message }); }
+  });
+  return res;
+}
+function toMyr(rec, dates) {
+  const loc = ffill(rec.local, dates);
+  if (!rec.fx) return loc;
+  const a = ffill(rec.fx.usdmyr, dates), b = rec.fx.usdccy ? ffill(rec.fx.usdccy, dates) : null;
+  const out = new Map();
+  for (const d of dates) {
+    const p = loc.get(d), m = a.get(d), c = b ? b.get(d) : 1;
+    if (p != null && m != null && c != null) out.set(d, p * m / c);
+  }
+  return out;
+}
+
+/* ---------- portfolio engine ---------- */
+const events = () => S.portfolio.events;
+const currentTargets = () => { const e = events(); return e.length ? e[e.length - 1] : null; };
+
+/* Runs the book from inception: units fixed between events, re-set at each event to its target weights. */
+function runBook(myr, dates, benchDaily) {
+  const evs = events(); if (!evs.length || !dates.length) return null;
+  const inception = evs[0].date;
+  const ds = dates.filter(d => d >= inception);
+  if (!ds.length) return null;
+  let units = {}, cash = 0, ei = 0, V = 100, prevD = null;
+  const series = [], contrib = {}, active = {}, wPrev = {};
+  const iw = snapMap();
+  const priceAt = (code, d) => { const m = myr.get(code); return m ? m.get(d) : undefined; };
+  const value = d => cash + sum(Object.entries(units).map(([c, u]) => { const p = priceAt(c, d); return p != null ? u * p : 0; }));
+  for (const d of ds) {
+    if (prevD) V = value(d);
+    // daily attribution using start-of-day weights
+    if (prevD) {
+      const Vp = series[series.length - 1].v;
+      const rb = benchDaily ? benchDaily.get(d) : null;
+      const universe = new Set([...Object.keys(units), ...(benchDaily ? [...myr.keys()] : [])]);
+      for (const c of universe) {
+        const p0 = priceAt(c, prevD), p1 = priceAt(c, d);
+        if (p0 == null || p1 == null) continue;
+        const r = p1 / p0 - 1;
+        const wp = units[c] ? units[c] * p0 / Vp : 0;
+        if (wp) contrib[c] = (contrib[c] || 0) + wp * r;
+        if (rb != null) { const wb = (iw.get(c) || {}).weight || 0; active[c] = (active[c] || 0) + (wp - wb) * (r - rb); }
+      }
+    }
+    while (ei < evs.length && evs[ei].date <= d) {
+      const e = evs[ei++];
+      const tgt = e.weights;
+      const newUnits = {};
+      for (const [c, w] of Object.entries(tgt)) { const p = priceAt(c, d); if (p != null && w > 0) newUnits[c] = w * V / p; }
+      const invested = sum(Object.entries(newUnits).map(([c, u]) => u * priceAt(c, d)));
+      units = newUnits; cash = V - invested;
+    }
+    series.push({ d, v: V });
+    prevD = d;
+  }
+  const lastD = ds[ds.length - 1], Vl = series[series.length - 1].v;
+  const weights = {};
+  for (const [c, u] of Object.entries(units)) { const p = priceAt(c, lastD); if (p != null) weights[c] = u * p / Vl; }
+  return { series, weights, cashW: cash / Vl, contrib, active, inception, lastD };
+}
+function retFrom(series, fromDate) {
+  if (!series || series.length < 2) return null;
+  const last = series[series.length - 1];
+  let base = null; for (const p of series) { if (p.d <= fromDate) base = p; else break; }
+  if (!base) base = series[0];
+  return last.v / base.v - 1;
+}
+function benchSeries(dates) {
+  if (!S.indexLevels.length) return null;
+  const m = new Map(S.indexLevels.map(r => [r.date, r.level]));
+  const f = ffill(m, dates);
+  const daily = new Map(); let prev = null;
+  for (const d of dates) { const v = f.get(d); if (prev != null && v != null) daily.set(d, v / prev - 1); if (v != null) prev = v; }
+  return { levels: f, daily };
+}
+function addDays(iso, n) { const d = new Date(iso + "T00:00:00Z"); d.setUTCDate(d.getUTCDate() + n); return d.toISOString().slice(0, 10); }
+
+/* ---------- UI: routing ---------- */
+let tab = location.hash.replace("#", "") || "portfolio";
+function go(t) { tab = t; history.replaceState(null, "", "#" + t); render(); }
+$("#nav").addEventListener("click", e => { const b = e.target.closest("button[data-tab]"); if (b) go(b.dataset.tab); });
+function render() {
+  for (const b of document.querySelectorAll("#nav button")) b.setAttribute("aria-current", b.dataset.tab === tab ? "page" : "false");
+  const app = $("#app"); app.replaceChildren();
+  if (mode === "local") app.append(el("div", { class: "banner" }, el("b", { text: "Saved in this browser only. " }), "Your portfolio is stored on this computer until the private Worker is set up. Then add its address on the Data tab and everything moves to the cloud."));
+  if (tab === "stocks") renderStocks(app);
+  else if (tab === "data") renderData(app);
+  else renderPortfolio(app);
+}
+
+/* ---------- Portfolio tab ---------- */
+let draft = null;      // { weights: {code: w} } while editing
+let lastRun = null;    // cached analytics
+async function renderPortfolio(app) {
+  if (!latestSnap()) {
+    app.append(el("div", { class: "card" }, el("h2", { text: "Start here" }),
+      el("p", { class: "sub", text: "Upload the MIAPJ constituents file first, so the portfolio knows the index weights." }),
+      el("button", { class: "btn primary", type: "button", onclick: () => go("data") }, "Go to Data upload")));
+    return;
+  }
+  const cur = currentTargets();
+  if (!cur || draft) { renderEditor(app); return; }
+
+  const head = el("div", { class: "row" },
+    el("div", {}, el("div", { class: "muted tiny", text: "Inception " + events()[0].date + " · last change " + cur.date + " · index as of " + latestSnap().asof })),
+    el("div", { class: "spacer" }),
+    canEdit() ? el("button", { class: "btn", type: "button", onclick: () => { draft = { weights: { ...cur.weights } }; render(); } }, "Change weights") : null);
+  app.append(head);
+  const tiles = el("div", { class: "tiles", id: "tiles" }); app.append(tiles);
+  const chartCard = el("div", { class: "card" }, el("h2", { text: "Portfolio vs MIAPJ" }), el("p", { class: "sub", id: "chartSub", text: "Total return in MYR, rebased to 100 at inception." }), el("div", { class: "chartbox" }, el("canvas", { id: "perf" })));
+  app.append(chartCard);
+  const holdCard = el("div", { class: "card" }, el("h2", { text: "Holdings" }), el("p", { class: "sub", text: "Current weights have drifted with prices since the last change." }), el("div", { class: "tablewrap", id: "holdTbl" }, el("div", { class: "empty", text: "Loading prices…" })));
+  app.append(holdCard);
+  const g1 = el("div", { class: "grid2" },
+    el("div", { class: "card" }, el("h2", { text: "Active weight by country" }), el("p", { class: "sub", text: "Portfolio minus index, percentage points." }), el("div", { class: "bars", id: "byCountry" })),
+    el("div", { class: "card" }, el("h2", { text: "Active weight by sector" }), el("p", { class: "sub", text: "Portfolio minus index, percentage points." }), el("div", { class: "bars", id: "bySector" })));
+  const g2 = el("div", { class: "grid2" },
+    el("div", { class: "card" }, el("h2", { text: "Top overweights" }), el("div", { class: "list", id: "topOW" })),
+    el("div", { class: "card" }, el("h2", { text: "Top underweights" }), el("div", { class: "list", id: "topUW" })));
+  const g3 = el("div", { class: "grid2" },
+    el("div", { class: "card" }, el("h2", { text: "Contributors" }), el("p", { class: "sub", id: "contribSub" }), el("div", { class: "list", id: "contribUp" })),
+    el("div", { class: "card" }, el("h2", { text: "Detractors" }), el("p", { class: "sub", text: "Same basis." }), el("div", { class: "list", id: "contribDn" })));
+  const stats = el("div", { class: "card" }, el("h2", { text: "Portfolio profile" }), el("div", { class: "tiles", id: "stats" }));
+  const log = el("div", { class: "card" }, el("h2", { text: "Change log" }), el("p", { class: "sub", text: "Every weight change, dated, with your reason." }), el("div", { class: "tablewrap", id: "log" }));
+  app.append(g1, g2, g3, stats, log);
+  drawStatic(cur);
+  drawLog();
+  try { await computeAndDraw(); } catch (e) { $("#holdTbl").replaceChildren(el("div", { class: "empty", text: "Prices could not load: " + e.message })); }
+}
+
+function activeBuckets(weights, key) {
+  const iw = snapMap(); const m = new Map();
+  for (const r of iw.values()) m.set(r[key], (m.get(r[key]) || 0) - r.weight);
+  for (const [c, w] of Object.entries(weights)) { const k = stockInfo(c)[key]; m.set(k, (m.get(k) || 0) + w); }
+  return [...m.entries()].map(([k, v]) => ({ k, v })).filter(x => Math.abs(x.v) > 0.00005).sort((a, b) => b.v - a.v);
+}
+function drawBars(box, rows) {
+  box.replaceChildren();
+  const max = Math.max(0.01, ...rows.map(r => Math.abs(r.v)));
+  for (const r of rows) {
+    const w = Math.abs(r.v) / max * 50;
+    const fill = el("i", { class: "fill", style: `${r.v >= 0 ? "left:50%" : "right:50%"};width:${w}%;background:var(${r.v >= 0 ? "--bar-pos" : "--bar-neg"})` });
+    box.append(el("div", { class: "bar" }, el("span", { text: r.k }), el("span", { class: "track" }, fill), el("span", { class: "v " + cls(r.v), text: pp(r.v, 1) })));
+  }
+  if (!rows.length) box.append(el("div", { class: "muted tiny", text: "No active positions." }));
+}
+function drawStatic(cur, live) {
+  const weights = live || cur.weights;
+  drawBars($("#byCountry"), activeBuckets(weights, "country"));
+  drawBars($("#bySector"), activeBuckets(weights, "sector"));
+  const iw = snapMap();
+  const all = new Set([...Object.keys(weights), ...iw.keys()]);
+  const act = [...all].map(c => ({ c, a: (weights[c] || 0) - ((iw.get(c) || {}).weight || 0) }));
+  act.sort((a, b) => b.a - a.a);
+  const li = (x) => { const i = stockInfo(x.c); return el("div", { class: "li" }, el("span", {}, i.name, " ", el("span", { class: "tk", text: x.c.replace(/^Y:/, "") })), el("span", { class: "num " + cls(x.a), text: pp(x.a) })); };
+  $("#topOW").replaceChildren(...act.filter(x => x.a > 0).slice(0, 10).map(li));
+  $("#topUW").replaceChildren(...act.filter(x => x.a < 0).slice(-10).reverse().map(li));
+  // profile
+  const names = Object.keys(weights).filter(c => weights[c] > 0);
+  const activeShare = 0.5 * sum([...all].map(c => Math.abs((weights[c] || 0) - ((iw.get(c) || {}).weight || 0))));
+  const sorted = names.map(c => weights[c]).sort((a, b) => b - a);
+  const offb = sum(names.filter(c => !iw.has(c)).map(c => weights[c]));
+  const countries = new Set(names.map(c => stockInfo(c).country)).size;
+  const cash = 1 - sum(names.map(c => weights[c]));
+  const st = $("#stats"); st.replaceChildren();
+  for (const [lab, val, sub] of [["Names", names.length, "holdings"], ["Active share", pct(activeShare, 0, false), "vs MIAPJ"], ["Top 10", pct(sum(sorted.slice(0, 10)), 0, false), "of portfolio"],
+    ["Largest", pct(sorted[0] || 0, 1, false), names.length ? stockInfo(names.find(c => weights[c] === sorted[0])).name : ""], ["Off-benchmark", pct(offb, 1, false), "not in index"], ["Countries", countries, "represented"], ["Cash", pct(Math.max(0, cash), 1, false), ""]])
+    st.append(el("div", { class: "tile" }, el("div", { class: "lab", text: lab }), el("div", { class: "big", text: String(val) }), el("div", { class: "small", text: sub })));
+}
+function drawLog() {
+  const box = $("#log"); const evs = events();
+  const t = el("table", {}, el("thead", {}, el("tr", {}, el("th", { text: "Date" }), el("th", { text: "Change" }), el("th", { text: "Reason" }))));
+  const tb = el("tbody"); t.append(tb);
+  for (let i = evs.length - 1; i >= 0; i--) {
+    const e = evs[i], p = i ? evs[i - 1].weights : {};
+    const codes = new Set([...Object.keys(e.weights), ...Object.keys(p)]);
+    const ch = [...codes].map(c => ({ c, a: p[c] || 0, b: e.weights[c] || 0 })).filter(x => Math.abs(x.a - x.b) > 1e-9);
+    if (i === 0) tb.append(el("tr", {}, el("td", { class: "mono", text: e.date }), el("td", { text: "Inception: " + Object.keys(e.weights).length + " names" }), el("td", { class: "name", text: e.note || "" })));
+    else for (const x of ch) tb.append(el("tr", {}, el("td", { class: "mono", text: e.date }), el("td", {}, stockInfo(x.c).name + "  ", el("span", { class: "tk", text: wfmt(x.a) + " → " + wfmt(x.b) + "%" })), el("td", { class: "name", text: (e.reasons && e.reasons[x.c]) || e.note || "" })));
+  }
+  box.replaceChildren(evs.length ? t : el("div", { class: "empty", text: "No changes yet." }));
+}
+
+let perfChart = null;
+async function computeAndDraw() {
+  const cur = currentTargets();
+  const held = new Set(events().flatMap(e => Object.keys(e.weights)));
+  const iwTop = latestSnap().rows.slice().sort((a, b) => b.weight - a.weight).slice(0, 25).map(r => r.code);
+  const codes = [...new Set([...held, ...iwTop])];
+  $("#pricePill").textContent = "Prices: loading " + codes.length + "…";
+  const recs = await loadMyrSeries(codes);
+  // common date axis from inception
+  const inc = events()[0].date;
+  const dset = new Set();
+  for (const [c, r] of recs) if (r.local && held.has(c)) for (const d of r.local.keys()) if (d >= addDays(inc, -10)) dset.add(d);
+  const dates = [...dset].sort();
+  const myr = new Map();
+  for (const [c, r] of recs) if (r.local) myr.set(c, toMyr(r, dates));
+  const bench = benchSeries(dates);
+  const run = runBook(myr, dates, bench ? bench.daily : null);
+  lastRun = { run, recs, myr, bench, dates };
+  const failed = [...recs.entries()].filter(([c, r]) => r.error && held.has(c));
+  const latestTs = Math.max(0, ...[...recs.values()].map(r => r.lastTime || 0));
+  $("#pricePill").textContent = failed.length ? `Prices: ${failed.length} missing` : "Prices: " + (latestTs ? new Date(latestTs * 1000).toLocaleString("en-GB", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" }) : "ok");
+  $("#pricePill").className = "pill " + (failed.length ? "warn" : "ok");
+  if (!run) { $("#holdTbl").replaceChildren(el("div", { class: "empty", text: "No prices since inception yet. Returns start from the first trading day after " + inc + "." })); return; }
+
+  // tiles
+  const s = run.series, last = run.lastD;
+  const bser = bench ? s.map(p => ({ d: p.d, v: bench.levels.get(p.d) })).filter(p => p.v != null) : null;
+  const R = f => retFrom(s, f), B = f => bser && bser.length > 1 ? retFrom(bser, f) : null;
+  const ytd = last.slice(0, 4) + "-01-01", mtd = last.slice(0, 7) + "-01";
+  const prevDay = s.length > 1 ? s[s.length - 2].d : last;
+  const windows = [["Since inception", run.inception], ["1 day", prevDay], ["1 month", addDays(last, -30)], ["Month to date", addDays(mtd, -1)], ["Year to date", addDays(ytd, -1)]];
+  const tiles = $("#tiles"); tiles.replaceChildren();
+  for (const [lab, f] of windows) {
+    const r = R(f), b = B(f);
+    tiles.append(el("div", { class: "tile" }, el("div", { class: "lab", text: lab }), el("div", { class: "big num " + cls(r), text: pct(r) }),
+      el("div", { class: "small" }, b == null ? "MIAPJ: upload index levels" : el("span", {}, "MIAPJ " + pct(b) + " · ", el("b", { class: cls(r - b), text: pp(r - b, 2) + " pts" })))));
+  }
+  // chart
+  const ctx = $("#perf");
+  if (ctx && window.Chart) {
+    const css = getComputedStyle(document.documentElement);
+    const base0 = bser && bser.length ? bser[0].v : null;
+    const ds = [{ label: "Portfolio", data: s.map(p => p.v), borderColor: css.getPropertyValue("--accent").trim(), borderWidth: 2, pointRadius: 0, tension: 0 }];
+    if (bser && bser.length) { const bm = new Map(bser.map(p => [p.d, p.v / base0 * 100])); ds.push({ label: "MIAPJ", data: s.map(p => bm.get(p.d) ?? null), borderColor: css.getPropertyValue("--bench").trim(), borderWidth: 2, borderDash: [5, 4], pointRadius: 0, tension: 0, spanGaps: true }); }
+    if (perfChart) perfChart.destroy();
+    perfChart = new Chart(ctx, { type: "line", data: { labels: s.map(p => p.d), datasets: ds },
+      options: { responsive: true, maintainAspectRatio: false, interaction: { mode: "index", intersect: false }, animation: false,
+        plugins: { legend: { labels: { color: css.getPropertyValue("--muted").trim(), boxWidth: 14 } }, tooltip: { callbacks: { label: c => c.dataset.label + ": " + (c.parsed.y ?? 0).toFixed(2) } } },
+        scales: { x: { ticks: { color: css.getPropertyValue("--muted").trim(), maxTicksLimit: 6 }, grid: { display: false } }, y: { ticks: { color: css.getPropertyValue("--muted").trim() }, grid: { color: css.getPropertyValue("--line").trim() } } } } });
+    if (!bench) $("#chartSub").textContent = "Total return in MYR, rebased to 100 at inception. Upload MIAPJ index levels on the Data tab to add the benchmark line.";
+  }
+  // holdings table
+  const iw = snapMap();
+  const rows = Object.keys({ ...cur.weights, ...run.weights }).map(c => {
+    const i = stockInfo(c), rec = recs.get(c) || {}, m = myr.get(c);
+    const p1 = m && m.get(last), p0 = m && m.get(prevDay), pInc = m && (m.get(run.inception) ?? [...m.entries()].find(([d]) => d >= run.inception)?.[1]);
+    const w = run.weights[c] || 0, b = (iw.get(c) || {}).weight || 0;
+    return { c, i, w, b, a: w - b, local: rec.last, ccy: rec.ccy, d1: p1 && p0 ? p1 / p0 - 1 : null, sinc: p1 && pInc ? p1 / pInc - 1 : null, ctb: run.contrib[c], err: rec.error };
+  }).sort((x, y) => y.w - x.w);
+  const t = el("table", {}, el("thead", {}, el("tr", {}, ...["Stock", "Country", "Sector", "Index", "Port", "Active", "Price", "1D", "Since inc.", "Contrib."].map((h, k) => el("th", { class: k >= 3 ? "n" + (k === 2 ? "" : "") : (k === 2 || k === 1 ? "hide-sm" : ""), text: h })))));
+  const tb = el("tbody"); t.append(tb);
+  for (const r of rows) {
+    tb.append(el("tr", { class: r.i.inIndex ? "" : "off" },
+      el("td", { class: "name" }, r.i.name, " ", el("span", { class: "tk", text: r.c.replace(/^Y:/, "") }), r.err ? el("span", { class: "tag", text: "no price" }) : null),
+      el("td", { class: "hide-sm", text: r.i.country }), el("td", { class: "hide-sm", text: r.i.sector }),
+      el("td", { class: "n", text: wfmt(r.b) }), el("td", { class: "n", text: wfmt(r.w) }), el("td", { class: "n " + cls(r.a), text: pp(r.a) }),
+      el("td", { class: "n", text: r.local != null ? num(r.local, r.local > 1000 ? 0 : 2) + " " + (r.ccy || "") : "—" }),
+      el("td", { class: "n " + cls(r.d1), text: pct(r.d1) }), el("td", { class: "n " + cls(r.sinc), text: pct(r.sinc) }), el("td", { class: "n " + cls(r.ctb), text: r.ctb == null ? "—" : pp(r.ctb, 2) })));
+  }
+  tb.append(el("tr", {}, el("td", { class: "name muted", text: "Cash" }), el("td", { class: "hide-sm" }), el("td", { class: "hide-sm" }), el("td", { class: "n", text: "—" }), el("td", { class: "n", text: wfmt(run.cashW) }), el("td", {}), el("td", {}), el("td", {}), el("td", {}), el("td", {})));
+  $("#holdTbl").replaceChildren(t);
+  drawStatic(cur, run.weights);
+  // contributors
+  const useActive = !!bench;
+  const src = useActive ? run.active : run.contrib;
+  $("#contribSub").textContent = useActive ? "Relative to MIAPJ since inception: active weight × (stock return − index return), in percentage points. Covers your holdings and the 25 largest index names." : "Contribution to portfolio return since inception, in percentage points. Upload MIAPJ index levels to see contribution relative to the index.";
+  const arr = Object.entries(src).map(([c, v]) => ({ c, v })).sort((a, b) => b.v - a.v);
+  const li = x => el("div", { class: "li" }, el("span", {}, stockInfo(x.c).name), el("span", { class: "num " + cls(x.v), text: pp(x.v, 2) }));
+  $("#contribUp").replaceChildren(...arr.filter(x => x.v > 0).slice(0, 5).map(li));
+  $("#contribDn").replaceChildren(...arr.filter(x => x.v < 0).slice(-5).reverse().map(li));
+}
+
+/* ---------- Portfolio editor ---------- */
+function renderEditor(app) {
+  const cur = currentTargets();
+  if (!draft) draft = { weights: cur ? { ...cur.weights } : {} };
+  const iw = snapMap();
+  const card = el("div", { class: "card" });
+  card.append(el("h2", { text: cur ? "Change weights" : "Build your model portfolio" }),
+    el("p", { class: "sub", text: cur ? "Edit weights, add or remove stocks. Saving records a dated change with your reasons." : "Add stocks and set weights in %. Whatever is not invested is cash. Saving sets your inception date: returns are measured from then on, never backfilled." }));
+  if (!canEdit()) { card.append(el("p", { text: "View only." })); app.append(card); return; }
+  // add stock
+  const ac = autocomplete(code => { if (!(code in draft.weights)) draft.weights[code] = 0; render(); setTimeout(() => { const i = document.querySelector(`input[data-code="${CSS.escape(code)}"]`); if (i) i.focus(); }, 0); });
+  const tools = el("div", { class: "row" }, ac,
+    el("button", { class: "btn ghost", type: "button", onclick: () => { const n = parseInt(prompt("Start from the index: how many of the largest names?", "40"), 10); if (!n) return; const top = latestSnap().rows.slice().sort((a, b) => b.weight - a.weight).slice(0, n); const t = sum(top.map(r => r.weight)); draft.weights = {}; for (const r of top) draft.weights[r.code] = Math.round(r.weight / t * 10000) / 10000; render(); } }, "Start from index top N"));
+  card.append(tools);
+  const codes = Object.keys(draft.weights);
+  const total = sum(Object.values(draft.weights));
+  const meter = el("div", { class: "totbar" }, el("span", {}, "Invested ", el("b", { class: total > 1.00001 ? "neg" : "", text: wfmt(total) + "%" })), el("span", { class: "meter" }, el("i", { style: `width:${Math.min(100, total * 100)}%` })), el("span", { class: "muted", text: "Cash " + wfmt(Math.max(0, 1 - total)) + "%" }));
+  card.append(el("div", { style: "margin:12px 0" }, meter));
+  if (codes.length) {
+    const t = el("table", {}, el("thead", {}, el("tr", {}, el("th", { text: "Stock" }), el("th", { class: "hide-sm", text: "Country" }), el("th", { class: "n", text: "Index %" }), el("th", { class: "n", text: "Weight %" }), el("th", { class: "n", text: "Active" }), el("th", { text: "" }))));
+    const tb = el("tbody"); t.append(tb);
+    codes.sort((a, b) => (draft.weights[b] - draft.weights[a]) || ((iw.get(b) || {}).weight || 0) - ((iw.get(a) || {}).weight || 0));
+    for (const c of codes) {
+      const i = stockInfo(c), b = i.iw || 0, w = draft.weights[c];
+      const inp = el("input", { class: "w", type: "number", step: "0.1", min: "0", max: "100", value: (w * 100).toFixed(2).replace(/\.?0+$/, ""), "data-code": c, "aria-label": "Weight for " + i.name });
+      const act = el("td", { class: "n " + cls(w - b), text: pp(w - b) });
+      inp.addEventListener("input", () => { const v = parseFloat(inp.value); draft.weights[c] = isFinite(v) && v > 0 ? v / 100 : 0; act.textContent = pp(draft.weights[c] - b); act.className = "n " + cls(draft.weights[c] - b); const tt = sum(Object.values(draft.weights)); meter.querySelector("b").textContent = wfmt(tt) + "%"; meter.querySelector("b").className = tt > 1.00001 ? "neg" : ""; meter.querySelector("i").style.width = Math.min(100, tt * 100) + "%"; meter.lastChild.textContent = "Cash " + wfmt(Math.max(0, 1 - tt)) + "%"; });
+      tb.append(el("tr", { class: i.inIndex ? "" : "off" }, el("td", { class: "name" }, i.name, " ", el("span", { class: "tk", text: c.replace(/^Y:/, "") }), i.inIndex ? null : el("span", { class: "tag", text: "off-benchmark" })),
+        el("td", { class: "hide-sm", text: i.country }), el("td", { class: "n", text: wfmt(b) }), el("td", { class: "n" }, inp), act,
+        el("td", {}, el("button", { class: "btn ghost", type: "button", "aria-label": "Remove " + i.name, onclick: () => { delete draft.weights[c]; render(); } }, "×"))));
+    }
+    card.append(el("div", { class: "tablewrap" }, t));
+  } else card.append(el("div", { class: "empty", text: "No stocks yet. Search above, or start from the index's largest names." }));
+  const foot = el("div", { class: "row", style: "margin-top:12px" }, el("div", { class: "spacer" }),
+    cur ? el("button", { class: "btn ghost", type: "button", onclick: () => { draft = null; render(); } }, "Cancel") : null,
+    el("button", { class: "btn primary", type: "button", disabled: !codes.length || total > 1.00001 ? true : null, onclick: () => saveDraft() }, cur ? "Save change…" : "Save and start tracking…"));
+  card.append(foot);
+  app.append(card);
+}
+function saveDraft() {
+  const cur = currentTargets(); const prev = cur ? cur.weights : {};
+  const w = {}; for (const [c, v] of Object.entries(draft.weights)) if (v > 0) w[c] = Math.round(v * 1e6) / 1e6;
+  const changed = [...new Set([...Object.keys(w), ...Object.keys(prev)])].filter(c => Math.abs((w[c] || 0) - (prev[c] || 0)) > 1e-9);
+  if (cur && !changed.length) { toast("Nothing changed."); return; }
+  const body = el("div", { style: "display:grid;gap:10px" });
+  const dateIn = el("input", { type: "date", value: todayISO(), max: todayISO(), min: cur ? cur.date : null, id: "evDate" });
+  body.append(el("div", { class: "field" }, el("label", { for: "evDate", text: cur ? "Effective date" : "Inception date (returns start from this day's close)" }), dateIn));
+  const note = el("textarea", { rows: "2", id: "evNote", placeholder: cur ? "Overall reason (optional)" : "Why this portfolio, in a line or two (optional)" });
+  body.append(el("div", { class: "field" }, el("label", { for: "evNote", text: cur ? "Note" : "Note" }), note));
+  const reasons = {};
+  if (cur) for (const c of changed.slice(0, 30)) {
+    const r = el("input", { type: "text", placeholder: "Reason", id: "r_" + c });
+    reasons[c] = r;
+    body.append(el("div", { class: "field" }, el("label", { for: "r_" + c, text: stockInfo(c).name + "  " + wfmt(prev[c] || 0) + "% → " + wfmt(w[c] || 0) + "%" }), r));
+  }
+  dialog(cur ? "Save weight change" : "Start tracking", body, [["Cancel", null], [cur ? "Save change" : "Start tracking", () => {
+    const d = dateIn.value || todayISO();
+    if (cur && d < cur.date) { toast("Date must be on or after the last change (" + cur.date + ")."); return false; }
+    const ev = { date: d, weights: w, note: note.value.trim(), reasons: {} };
+    for (const [c, r] of Object.entries(reasons)) if (r.value.trim()) ev.reasons[c] = r.value.trim();
+    if (cur && cur.date === d) S.portfolio.events[S.portfolio.events.length - 1] = { ...ev, reasons: { ...cur.reasons, ...ev.reasons } };
+    else S.portfolio.events.push(ev);
+    persist(); draft = null; chartCache.clear(); render(); toast(cur ? "Change saved." : "Tracking started.");
+  }]]);
+}
+
+/* ---------- autocomplete (index names + Yahoo search for off-benchmark) ---------- */
+function autocomplete(onPick) {
+  const wrap = el("div", { class: "ac" });
+  const inp = el("input", { type: "search", placeholder: "Add a stock: ticker or name (e.g. hynix, 2454, BHP)", "aria-label": "Search stocks", autocomplete: "off", role: "combobox", "aria-expanded": "false" });
+  const list = el("div", { class: "ac-list", role: "listbox", hidden: true });
+  wrap.append(inp, list);
+  let items = [], sel = -1, timer = null, seq = 0;
+  const close = () => { list.hidden = true; inp.setAttribute("aria-expanded", "false"); };
+  const show = () => {
+    list.replaceChildren(...items.map((it, k) => el("div", { class: "ac-item", role: "option", "aria-selected": k === sel ? "true" : "false", onmousedown: e => { e.preventDefault(); pick(k); } },
+      el("span", {}, it.label), el("span", { class: "x", text: it.hint }))));
+    list.hidden = !items.length; inp.setAttribute("aria-expanded", String(!!items.length));
+  };
+  const pick = async k => {
+    const it = items[k]; if (!it) return;
+    if (it.yahoo) {
+      const code = "Y:" + it.yahoo.symbol;
+      S.stocks[code] = Object.assign(S.stocks[code] || {}, { name: it.yahoo.name, country: countryFromSymbol(it.yahoo.symbol), sector: (S.stocks[code] || {}).sector || "Other", exchange: it.yahoo.exchange });
+      S.yahoo[code] = it.yahoo.symbol; persist(); onPick(code);
+    } else onPick(it.code);
+    inp.value = ""; items = []; close();
+  };
+  inp.addEventListener("input", () => {
+    const q = inp.value.trim().toLowerCase(); sel = -1;
+    if (!q) { items = []; show(); return; }
+    const rows = latestSnap() ? latestSnap().rows : [];
+    items = rows.filter(r => r.code.toLowerCase().includes(q) || r.name.toLowerCase().includes(q)).sort((a, b) => b.weight - a.weight).slice(0, 8)
+      .map(r => ({ code: r.code, label: r.name + "  " + r.code, hint: r.country + " · " + wfmt(r.weight) + "%" }));
+    for (const [code, st] of Object.entries(S.stocks)) if (code.startsWith("Y:") && (code.toLowerCase().includes(q) || (st.name || "").toLowerCase().includes(q))) items.push({ code, label: st.name + "  " + code.slice(2), hint: "off-benchmark" });
+    show();
+    clearTimeout(timer);
+    if (q.length >= 2) timer = setTimeout(async () => {
+      const my = ++seq;
+      try {
+        const hits = await searchYahoo(q);
+        if (my !== seq) return;
+        const known = new Set(Object.values(S.yahoo));
+        for (const h of hits.filter(h => h.type === "EQUITY" && !known.has(h.symbol)).slice(0, 6)) items.push({ yahoo: h, label: h.name + "  " + h.symbol, hint: (h.exchange || "") + " · off-benchmark" });
+        show();
+      } catch {}
+    }, 300);
+  });
+  inp.addEventListener("keydown", e => {
+    if (e.key === "ArrowDown") { sel = Math.min(items.length - 1, sel + 1); show(); e.preventDefault(); }
+    else if (e.key === "ArrowUp") { sel = Math.max(0, sel - 1); show(); e.preventDefault(); }
+    else if (e.key === "Enter") { e.preventDefault(); pick(sel >= 0 ? sel : 0); }
+    else if (e.key === "Escape") close();
+  });
+  inp.addEventListener("blur", () => setTimeout(close, 150));
+  return wrap;
+}
+function countryFromSymbol(s) {
+  const m = { KS: "Korea", KQ: "Korea", TW: "Taiwan", TWO: "Taiwan", AX: "Australia", NS: "India", BO: "India", HK: "Hong Kong", SS: "China", SZ: "China", SI: "Singapore", KL: "Malaysia", BK: "Thailand", JK: "Indonesia", PS: "Philippines", NZ: "New Zealand", T: "Japan", TO: "Canada", L: "United Kingdom" };
+  const sfx = s.includes(".") ? s.split(".").pop() : "";
+  return m[sfx] || (sfx ? sfx : "United States");
+}
+
+/* ---------- dialog ---------- */
+function dialog(title, body, buttons) {
+  const d = $("#dlg"); $("#dlgTitle").textContent = title; $("#dlgBody").replaceChildren(body);
+  const f = $("#dlgFoot"); f.replaceChildren();
+  for (const [lab, fn] of buttons) {
+    const b = el("button", { class: "btn" + (fn ? " primary" : " ghost"), type: "button", text: lab });
+    b.addEventListener("click", () => { if (!fn) { d.close(); return; } if (fn() !== false) d.close(); });
+    f.append(b);
+  }
+  d.showModal();
+}
+
+/* ---------- Stocks tab (v1: list) ---------- */
+function renderStocks(app) {
+  const snap = latestSnap();
+  const card = el("div", { class: "card" }, el("h2", { text: "Stocks" }), el("p", { class: "sub", text: snap ? "All " + snap.rows.length + " index names as of " + snap.asof + ", plus any off-benchmark stocks you've added. Notes and stock pages come next." : "Upload the constituents file on the Data tab." }));
+  app.append(card);
+  if (!snap) return;
+  const cur = currentTargets(); const pw = lastRun && lastRun.run ? lastRun.run.weights : cur ? cur.weights : {};
+  const q = el("input", { type: "search", placeholder: "Filter by ticker, name, country or sector", "aria-label": "Filter stocks", style: "width:100%;max-width:420px" });
+  const scope = el("select", { "aria-label": "Show" }, el("option", { value: "all", text: "All" }), el("option", { value: "held", text: "In my portfolio" }), el("option", { value: "off", text: "Off-benchmark" }));
+  card.append(el("div", { class: "row", style: "margin-bottom:10px" }, q, scope));
+  const box = el("div", { class: "tablewrap", style: "max-height:70vh" }); card.append(box);
+  const all = snap.rows.map(r => r.code).concat(Object.keys(S.stocks).filter(c => c.startsWith("Y:")));
+  const draw = () => {
+    const s = q.value.trim().toLowerCase(), sc = scope.value;
+    const rows = all.map(c => ({ c, i: stockInfo(c), w: pw[c] || 0 })).filter(x => (!s || (x.c + " " + x.i.name + " " + x.i.country + " " + x.i.sector).toLowerCase().includes(s)) && (sc === "all" || (sc === "held" ? x.w > 0 : !x.i.inIndex)))
+      .sort((a, b) => (b.i.iw || 0) - (a.i.iw || 0) || b.w - a.w);
+    const t = el("table", {}, el("thead", {}, el("tr", {}, ...["Stock", "Country", "Sector", "Index %", "Port %", "Active"].map((h, k) => el("th", { class: k >= 3 ? "n" : k ? "hide-sm" : "", text: h })))));
+    const tb = el("tbody"); t.append(tb);
+    for (const x of rows.slice(0, 400)) tb.append(el("tr", { class: x.i.inIndex ? "" : "off" }, el("td", { class: "name" }, x.i.name, " ", el("span", { class: "tk", text: x.c.replace(/^Y:/, "") })), el("td", { class: "hide-sm", text: x.i.country }), el("td", { class: "hide-sm", text: x.i.sector }),
+      el("td", { class: "n", text: wfmt(x.i.iw) }), el("td", { class: "n", text: x.w ? wfmt(x.w) : "" }), el("td", { class: "n " + cls(x.w - (x.i.iw || 0)), text: pp(x.w - (x.i.iw || 0)) })));
+    box.replaceChildren(t);
+  };
+  q.addEventListener("input", draw); scope.addEventListener("change", draw); draw();
+}
+
+/* ---------- Data tab ---------- */
+function renderData(app) {
+  // constituents
+  const snap = latestSnap();
+  const c1 = el("div", { class: "card" }, el("h2", { text: "1. Index constituents" }),
+    el("p", { class: "sub", text: "Bloomberg export with columns Ticker, Name, Weight, Country, GICS Sector (Shares and Price optional). The as-of date is read from the file name, e.g. MIAPJ_as_of_Aug_31_2026.xlsx." }));
+  c1.append(fileDrop(".xlsx,.xls,.csv", f => importConstituents(f)));
+  if (S.snapshots.length) {
+    const t = el("table", {}, el("thead", {}, el("tr", {}, el("th", { text: "As of" }), el("th", { class: "n", text: "Names" }), el("th", { class: "n", text: "Weight sum" }), el("th", { text: "Uploaded" }))));
+    const tb = el("tbody"); t.append(tb);
+    for (const s of S.snapshots.slice().reverse()) tb.append(el("tr", {}, el("td", { class: "mono", text: s.asof }), el("td", { class: "n", text: s.rows.length }), el("td", { class: "n", text: wfmt(sum(s.rows.map(r => r.weight))) + "%" }), el("td", { class: "muted", text: (s.uploaded || "").slice(0, 16).replace("T", " ") })));
+    c1.append(el("div", { class: "tablewrap", style: "margin-top:12px" }, t));
+    if (canEdit() && S.snapshots.length) c1.append(el("button", { class: "btn ghost", type: "button", style: "margin-top:8px", onclick: () => { if (confirm("Remove the latest snapshot (" + snap.asof + ")?")) { S.snapshots.pop(); persist(); render(); } } }, "Undo last upload"));
+  }
+  // index levels
+  const c2 = el("div", { class: "card" }, el("h2", { text: "2. MIAPJ index levels (MYR, total return)" }),
+    el("p", { class: "sub", text: "Two columns: Date and index level. Daily history is fine; uploading again adds new dates and replaces overlapping ones." }));
+  c2.append(fileDrop(".xlsx,.xls,.csv", f => importLevels(f)));
+  if (S.indexLevels.length) c2.append(el("p", { class: "tiny muted", style: "margin-top:10px", text: `${S.indexLevels.length} days, ${S.indexLevels[0].date} to ${S.indexLevels[S.indexLevels.length - 1].date}.` }));
+  // storage
+  const c3 = el("div", { class: "card" }, el("h2", { text: "3. Private cloud storage" }),
+    el("p", { class: "sub", text: "Once the Worker is deployed, paste its address and your passphrase. Your data then lives in the cloud and your boss can view it with the view-only passphrase." }));
+  const u = el("input", { type: "text", id: "wurl", value: cfg.stateWorker, placeholder: "https://aloyport-api.<you>.workers.dev", style: "width:100%" });
+  const tk = el("input", { type: "password", id: "wtok", value: cfg.token, placeholder: "Passphrase", style: "width:100%" });
+  c3.append(el("div", { class: "field" }, el("label", { for: "wurl", text: "Worker address" }), u), el("div", { class: "field", style: "margin-top:8px" }, el("label", { for: "wtok", text: "Passphrase (yours to edit, or the view-only one)" }), tk),
+    el("div", { class: "row", style: "margin-top:10px" },
+      el("button", { class: "btn primary", type: "button", onclick: async () => {
+        cfg.stateWorker = u.value.trim(); cfg.token = tk.value.trim(); cfg.priceWorker = cfg.stateWorker || DEFAULT_PRICE_WORKER; saveCfg();
+        const localCopy = S;
+        try {
+          const who = await api("/me"); const remote = await api("/state");
+          if (who.role !== "viewer" && (!remote || !remote.v) && (localCopy.snapshots.length || localCopy.portfolio.events.length)) {
+            await api("/state", { method: "PUT", body: JSON.stringify(localCopy) }); toast("Connected. Your browser data was copied to the cloud.");
+          } else toast("Connected as " + who.role + ".");
+        } catch (e) { toast("Could not connect: " + e.message); }
+        await loadState(); setPills(); render();
+      } }, "Connect"),
+      el("button", { class: "btn ghost", type: "button", onclick: () => { cfg.stateWorker = ""; cfg.token = ""; cfg.priceWorker = DEFAULT_PRICE_WORKER; saveCfg(); loadState().then(() => { setPills(); render(); }); } }, "Disconnect")));
+  // backup
+  const c4 = el("div", { class: "card" }, el("h2", { text: "4. Backup" }), el("p", { class: "sub", text: "Download everything as one file, or restore from one." }));
+  const restore = el("input", { type: "file", accept: ".json", hidden: true });
+  restore.addEventListener("change", async () => { const f = restore.files[0]; if (!f) return; try { const d = JSON.parse(await f.text()); if (!d.v) throw new Error("not a backup file"); S = Object.assign(blankState(), d); persist(); render(); toast("Restored."); } catch (e) { toast("Restore failed: " + e.message); } });
+  c4.append(el("div", { class: "row" },
+    el("button", { class: "btn", type: "button", onclick: () => { const a = el("a", { href: URL.createObjectURL(new Blob([JSON.stringify(S, null, 1)], { type: "application/json" })), download: "aloyport-backup-" + todayISO() + ".json" }); document.body.append(a); a.click(); a.remove(); } }, "Download backup"),
+    canEdit() ? el("button", { class: "btn ghost", type: "button", onclick: () => restore.click() }, "Restore from backup") : null, restore));
+  app.append(c1, c2, c3, c4);
+}
+function fileDrop(accept, onFile) {
+  const inp = el("input", { type: "file", accept, hidden: true });
+  const box = el("div", { class: "drop" }, "Drop a file here, or ", el("button", { class: "btn", type: "button", onclick: () => inp.click() }, "choose file"), inp);
+  if (!canEdit()) return el("p", { class: "muted", text: "View only." });
+  inp.addEventListener("change", () => inp.files[0] && onFile(inp.files[0]));
+  box.addEventListener("dragover", e => { e.preventDefault(); box.classList.add("over"); });
+  box.addEventListener("dragleave", () => box.classList.remove("over"));
+  box.addEventListener("drop", e => { e.preventDefault(); box.classList.remove("over"); const f = e.dataTransfer.files[0]; if (f) onFile(f); });
+  return box;
+}
+async function readSheet(file) {
+  const buf = await file.arrayBuffer();
+  const wb = XLSX.read(buf, { type: "array", cellDates: true });
+  const ws = wb.Sheets[wb.SheetNames[0]];
+  return XLSX.utils.sheet_to_json(ws, { header: 1, raw: true, defval: null });
+}
+const MONTHS = { jan: 1, feb: 2, mar: 3, apr: 4, may: 5, jun: 6, jul: 7, aug: 8, sep: 9, oct: 10, nov: 11, dec: 12 };
+function dateFromName(n) {
+  let m = n.match(/(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)[a-z]*[_\- ]?(\d{1,2})[_\-, ]+(\d{4})/i);
+  if (m) return `${m[3]}-${String(MONTHS[m[1].toLowerCase()]).padStart(2, "0")}-${m[2].padStart(2, "0")}`;
+  m = n.match(/(\d{4})[-_]?(\d{2})[-_]?(\d{2})/); if (m) return `${m[1]}-${m[2]}-${m[3]}`;
+  return null;
+}
+async function importConstituents(file) {
+  try {
+    const rows = await readSheet(file);
+    const hi = rows.findIndex(r => r && r.some(x => /ticker/i.test(String(x ?? ""))) && r.some(x => /weight/i.test(String(x ?? ""))));
+    if (hi < 0) throw new Error("Couldn't find a header row with Ticker and Weight.");
+    const h = rows[hi].map(x => String(x ?? "").replace(/\s+/g, " ").trim().toLowerCase());
+    const col = re => h.findIndex(x => re.test(x));
+    const ci = { t: col(/^ticker/), n: col(/^name/), w: col(/weight/), c: col(/cntry|country/), s: col(/sector/), p: col(/^price/) };
+    if (ci.t < 0 || ci.w < 0) throw new Error("Need Ticker and Weight columns.");
+    const out = [];
+    for (const r of rows.slice(hi + 1)) {
+      if (!r || !r[ci.t]) continue;
+      const code = tidy(r[ci.t]).replace(/\s+Equity$/i, "");
+      const w = Number(r[ci.w]); if (!isFinite(w)) continue;
+      out.push({ code, name: tidy(r[ci.n]), weight: w / 100, country: titleCountry(r[ci.c]), sector: tidy(r[ci.s]) || "Other", price: ci.p >= 0 ? Number(r[ci.p]) : null });
+    }
+    if (!out.length) throw new Error("No rows found.");
+    let asof = dateFromName(file.name);
+    asof = prompt("As-of date for this file (YYYY-MM-DD):", asof || todayISO());
+    if (!asof || !/^\d{4}-\d{2}-\d{2}$/.test(asof)) { toast("Upload cancelled."); return; }
+    const prev = latestSnap(); const tot = sum(out.map(r => r.weight));
+    const added = prev ? out.filter(r => !prev.rows.some(p => p.code === r.code)).length : 0;
+    const removed = prev ? prev.rows.filter(p => !out.some(r => r.code === p.code)).length : 0;
+    S.snapshots = S.snapshots.filter(s => s.asof !== asof);
+    S.snapshots.push({ asof, uploaded: new Date().toISOString(), rows: out });
+    S.snapshots.sort((a, b) => a.asof.localeCompare(b.asof));
+    persist(); render();
+    toast(`${out.length} names, weights sum ${wfmt(tot)}%` + (prev ? `; ${added} added, ${removed} removed since ${prev.asof}` : ""));
+  } catch (e) { toast("Upload failed: " + e.message); }
+}
+async function importLevels(file) {
+  try {
+    const rows = await readSheet(file);
+    const out = new Map(S.indexLevels.map(r => [r.date, r.level]));
+    let n = 0;
+    for (const r of rows) {
+      if (!r || r.length < 2) continue;
+      let d = r[0], v = Number(r[1]);
+      if (!isFinite(v)) continue;
+      if (d instanceof Date) d = new Date(d.getTime() - d.getTimezoneOffset() * 6e4).toISOString().slice(0, 10);
+      else if (typeof d === "number") d = new Date(Math.round((d - 25569) * 864e5)).toISOString().slice(0, 10);
+      else { const t = new Date(String(d)); if (isNaN(t)) continue; d = new Date(t.getTime() - t.getTimezoneOffset() * 6e4).toISOString().slice(0, 10); }
+      out.set(d, v); n++;
+    }
+    if (!n) throw new Error("No date/level rows found.");
+    S.indexLevels = [...out.entries()].sort((a, b) => a[0].localeCompare(b[0])).map(([date, level]) => ({ date, level }));
+    persist(); render(); toast(n + " index levels loaded.");
+  } catch (e) { toast("Upload failed: " + e.message); }
+}
+
+/* ---------- boot ---------- */
+(async function boot() {
+  await loadState(); setPills(); render();
+  window.addEventListener("hashchange", () => { const t = location.hash.replace("#", ""); if (t && t !== tab) { tab = t; render(); } });
+})();
+</script>
+</body>
+</html>
